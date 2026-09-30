@@ -14,7 +14,12 @@ class ThemeController {
             $themes = $graphql->getThemes($shop);
         } catch (\Throwable $e) {
             $isScopeError = str_contains($e->getMessage(), 'read_themes') || str_contains($e->getMessage(), '403');
-            Log::warning("Could not fetch themes for {$shop->shop_domain}: " . $e->getMessage());
+            if ($isScopeError) {
+                Log::info("Store {$shop->shop_domain} has not yet granted read_themes scope; prompt displayed to merchant.");
+            } else {
+                Log::warning("Could not fetch themes for {$shop->shop_domain}: " . $e->getMessage());
+            }
+
             return response()->json([
                 'themes' => [],
                 'published_theme_id' => $shop->published_theme_id,
@@ -22,7 +27,7 @@ class ThemeController {
                 'scope_required' => $isScopeError,
                 'reauth_url' => '/auth?shop=' . urlencode($shop->shop_domain),
                 'error' => $isScopeError
-                    ? 'Theme management requires read_themes and write_themes permissions. Please re-authorize the app to grant theme permissions.'
+                    ? 'Theme management requires read_themes and write_themes permissions. Please click "Grant Theme Permissions" to enable theme duplication.'
                     : 'Unable to read themes: ' . $e->getMessage(),
             ]);
         }
