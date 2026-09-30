@@ -291,6 +291,178 @@ GQL;
         return $res;
     }
 
+    public function createBundleProduct(Shop $shop, array $data): array {
+        $title = (string) ($data['title'] ?? 'Custom Bundle');
+        $descriptionHtml = (string) ($data['description_html'] ?? '');
+        $tags = (array) ($data['tags'] ?? ['bundle', 'salessnap-bundle']);
+        $status = strtoupper((string) ($data['status'] ?? 'ACTIVE'));
+        if (!in_array($status, ['ACTIVE', 'DRAFT', 'ARCHIVED'], true)) {
+            $status = 'ACTIVE';
+        }
+        $price = number_format((float) ($data['price'] ?? 0), 2, '.', '');
+        $compareAtPrice = !empty($data['compare_at_price']) ? number_format((float) $data['compare_at_price'], 2, '.', '') : null;
+        $sku = !empty($data['sku']) ? (string) $data['sku'] : null;
+        $imageUrl = !empty($data['image_url']) ? (string) $data['image_url'] : null;
+
+        $createMutation = <<<'GQL'
+mutation CreateBundleProduct($input: ProductInput!) {
+  productCreate(input: $input) {
+    product {
+      id
+      title
+      handle
+      status
+      variants(first: 5) {
+        nodes {
+          id
+          price
+          compareAtPrice
+        }
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+GQL;
+
+        $input = [
+            'title' => $title,
+            'descriptionHtml' => $descriptionHtml,
+            'tags' => array_values(array_unique(array_filter($tags))),
+            'status' => $status,
+            'vendor' => 'SaleSnap Bundles',
+        ];
+
+        $res = $this->query($shop, $createMutation, ['input' => $input])['productCreate'] ?? [];
+        $this->assertUserErrors($res['userErrors'] ?? []);
+
+        $product = $res['product'] ?? null;
+        if (!$product || empty($product['id'])) {
+            throw new RuntimeException('Failed to retrieve created product from Shopify.');
+        }
+
+        $productId = $product['id'];
+        $defaultVariant = $product['variants']['nodes'][0] ?? null;
+
+        if ($defaultVariant && !empty($defaultVariant['id'])) {
+            $variantInput = [
+                'id' => $defaultVariant['id'],
+                'price' => $price,
+            ];
+            if ($compareAtPrice !== null && (float) $compareAtPrice > (float) $price) {
+                $variantInput['compareAtPrice'] = $compareAtPrice;
+            }
+            if ($sku !== null) {
+                $variantInput['sku'] = $sku;
+            }
+
+            $this->updateVariantPrices($shop, $productId, [$variantInput]);
+        }
+
+        if ($imageUrl) {
+            try {
+                $this->createProductMedia($shop, $productId, $imageUrl, $title);
+            } catch (\Throwable $e) {
+                Log::warning("Could not attach media image to bundle product {$productId}: " . $e->getMessage());
+            }
+        }
+
+        preg_match('/(\d+)$/', $productId, $m);
+        $idNumber = $m[1] ?? '';
+        $shopSlug = explode('.', $shop->shop_domain)[0];
+
+        return [
+            'id' => $productId,
+            'title' => $title,
+            'handle' => $product['handle'] ?? '',
+            'status' => $status,
+            'price' => $price,
+            'compare_at_price' => $compareAtPrice,
+            'admin_url' => "https://admin.shopify.com/store/{$shopSlug}/products/{$idNumber}",
+        ];
+    }
+
+    public function createProductMedia(Shop $shop, string $productId, string $imageUrl, string $alt = ''): void {
+        $mutation = <<<'GQL'
+mutation ProductCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+  productCreateMedia(productId: $productId, media: $media) {
+    media {
+      id
+      status
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+GQL;
+
+        $media = [
+            [
+                'originalSource' => $imageUrl,
+                'mediaContentType' => 'IMAGE',
+                'alt' => $alt ?: 'Product Image',
+            ],
+        ];
+
+        $res = $this->query($shop, $mutation, [
+            'productId' => $productId,
+            'media' => $media,
+        ])['productCreateMedia'] ?? [];
+
+        $this->assertUserErrors($res['userErrors'] ?? []);
+    }
+
+    public function searchBundleProducts(Shop $shop, string $term = ''): array {
+        $query = <<<'GQL'
+query BundleProductsSearch($query: String!) {
+  products(first: 50, query: $query, sortKey: UPDATED_AT, reverse: true) {
+    nodes {
+      id
+      title
+      handle
+      status
+      tags
+      featuredImage { url altText }
+      variants(first: 5) {
+        nodes { id price compareAtPrice }
+      }
+    }
+  }
+}
+GQL;
+
+        $q = 'tag:bundle OR tag:salessnap-bundle';
+        if ($term !== '') {
+            $q = '(' . $q . ') AND title:' . str_replace(['\\', '*'], ['', ''], $term) . '*';
+        }
+
+        $nodes = $this->query($shop, $query, ['query' => $q])['products']['nodes'] ?? [];
+        return array_map(function ($p) use ($shop) {
+            $price = $p['variants']['nodes'][0]['price'] ?? '0.00';
+            $compareAtPrice = $p['variants']['nodes'][0]['compareAtPrice'] ?? null;
+            preg_match('/(\d+)$/', $p['id'], $m);
+            $idNumber = $m[1] ?? '';
+            $shopSlug = explode('.', $shop->shop_domain)[0];
+
+            return [
+                'id' => $p['id'],
+                'title' => $p['title'] ?? '',
+                'handle' => $p['handle'] ?? '',
+                'status' => $p['status'] ?? 'ACTIVE',
+                'tags' => $p['tags'] ?? [],
+                'image' => $p['featuredImage']['url'] ?? null,
+                'price' => $price,
+                'compare_at_price' => $compareAtPrice,
+                'admin_url' => "https://admin.shopify.com/store/{$shopSlug}/products/{$idNumber}",
+            ];
+        }, $nodes);
+    }
+
     private function assertUserErrors(array $errors): void {
         if ($errors) {
             throw new RuntimeException('Shopify rejected request: ' . mb_substr(json_encode($errors), 0, 1200));

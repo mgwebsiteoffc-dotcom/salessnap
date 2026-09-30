@@ -9,21 +9,26 @@
   let dashboard = null;
   let billingData = null;
   let selected = new Map();
+  let bundleSelected = new Map();
   let currentProducts = [];
   let currentCollections = [];
+  let catalogSelectedIds = new Set();
   let activeFilter = 'all';
   let restoreId = null;
   let productTimer = null;
+  let bundleProductTimer = null;
   let authRedirectStarted = false;
   let selectionMode = 'products';
   let catalogTab = 'products'; // 'products' or 'collections'
+  let bundleDialogMode = 'combo'; // 'combo' or 'multipack'
 
   const pageHeaders = {
     overview: ['SaleSnap', 'Schedule selected product changes with pre-change snapshots and restore reporting.'],
     campaigns: ['Campaigns', 'Plan scheduled product promotions and review their restore status.'],
-    products: ['Products & Collections', 'Explore store products and collections to launch flash-sale discounts.'],
+    products: ['Products & Collections', 'Explore store products and collections to launch flash sales or bulk bundles.'],
+    bundles: ['Bundle Creator', 'Create high-converting multi-product bundles and bulk value packs in Shopify.'],
     snapshots: ['Snapshots & Restores', 'Review campaign snapshots, restore outcomes, and any skipped fields.'],
-    activity: ['Activity Log', 'A clear audit trail of scheduled campaigns and restore actions.'],
+    activity: ['Activity Log', 'A clear audit trail of scheduled campaigns, restores, and bundle creations.'],
     billing: ['Billing & Plans', 'Manage your SaleSnap app subscription and unlock advanced capabilities.'],
     settings: ['Settings', 'Review this app’s Shopify connection and data handling.']
   };
@@ -92,6 +97,8 @@
 
   function statusBadge(status) {
     const m = {
+      ACTIVE: ['Active', 'polaris-badge-success'],
+      DRAFT: ['Draft', 'polaris-badge-neutral'],
       running: ['Live', 'polaris-badge-success'],
       applying: ['Starting', 'polaris-badge-warning'],
       scheduled: ['Scheduled', 'polaris-badge-warning'],
@@ -223,34 +230,71 @@
       return;
     }
 
-    if (page === 'products') {
+    if (page === 'bundles') {
       body.innerHTML = `
-        <div style="margin-bottom:16px;">
-          <div class="polaris-segmented-control" style="max-width:320px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <div style="display:flex;gap:8px;">
+            <button class="polaris-btn polaris-btn-primary" id="open-bundle-combo-btn">＋ Create Combo Bundle</button>
+            <button class="polaris-btn" id="open-bundle-multipack-btn">⚡ Bulk Multi-Packs</button>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <input class="polaris-input" id="bundle-search-input" placeholder="Search bundles in store..." style="max-width:260px;">
+            <button class="polaris-btn" id="bundle-search-btn">Filter</button>
+          </div>
+        </div>
+        <div id="bundle-results-box"><div class="polaris-empty-state">Loading your store bundles…</div></div>
+      `;
+
+      $('#open-bundle-combo-btn').onclick = () => openBundleModal('combo');
+      $('#open-bundle-multipack-btn').onclick = () => openBundleModal('multipack');
+      $('#bundle-search-btn').onclick = () => loadStoreBundles($('#bundle-search-input').value);
+      $('#bundle-search-input').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); loadStoreBundles($('#bundle-search-input').value); } };
+
+      loadStoreBundles();
+      return;
+    }
+
+    if (page === 'products') {
+      catalogSelectedIds.clear();
+      body.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <div class="polaris-segmented-control" style="max-width:300px;margin-bottom:0;">
             <button class="polaris-segment-btn ${catalogTab === 'products' ? 'active' : ''}" id="catalog-tab-products">Products</button>
             <button class="polaris-segment-btn ${catalogTab === 'collections' ? 'active' : ''}" id="catalog-tab-collections">Collections</button>
           </div>
-          <div id="catalog-search-bar" style="display:flex;gap:10px;max-width:500px;">
-            <input class="polaris-input" id="catalog-search-input" placeholder="Search products by title...">
-            <button class="polaris-btn polaris-btn-primary" id="catalog-search-btn">Search</button>
+
+          <div style="display:flex;gap:8px;">
+            <button class="polaris-btn" id="bulk-bundle-from-catalog" disabled>🎁 Create Bundle (0)</button>
+            <button class="polaris-btn" id="bulk-multipack-from-catalog" disabled>⚡ Bulk Multi-Packs (0)</button>
+            <button class="polaris-btn polaris-btn-primary" id="bulk-discount-from-catalog" disabled>＋ Discount Selected (0)</button>
           </div>
         </div>
+
+        <div id="catalog-search-bar" style="display:flex;gap:10px;max-width:500px;margin-bottom:16px;">
+          <input class="polaris-input" id="catalog-search-input" placeholder="Search products by title...">
+          <button class="polaris-btn" id="catalog-search-btn">Search</button>
+        </div>
+
         <div id="catalog-results-box"><div class="polaris-empty-state">Loading your catalog…</div></div>
       `;
 
       $('#catalog-tab-products').onclick = () => {
         catalogTab = 'products';
+        catalogSelectedIds.clear();
         $('#catalog-tab-products').classList.add('active');
         $('#catalog-tab-collections').classList.remove('active');
         $('#catalog-search-input').placeholder = 'Search products by title...';
+        updateCatalogBulkButtons();
         loadCatalogProducts();
       };
 
       $('#catalog-tab-collections').onclick = () => {
         catalogTab = 'collections';
+        catalogSelectedIds.clear();
         $('#catalog-tab-collections').classList.add('active');
         $('#catalog-tab-products').classList.remove('active');
         $('#catalog-search-input').placeholder = 'Filter collections...';
+        updateCatalogBulkButtons();
         loadCatalogCollections();
       };
 
@@ -265,6 +309,21 @@
           if (catalogTab === 'products') loadCatalogProducts($('#catalog-search-input').value);
           else loadCatalogCollections($('#catalog-search-input').value);
         }
+      };
+
+      $('#bulk-bundle-from-catalog').onclick = () => {
+        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
+        openBundleModal('combo', prods);
+      };
+
+      $('#bulk-multipack-from-catalog').onclick = () => {
+        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
+        openBundleModal('multipack', prods);
+      };
+
+      $('#bulk-discount-from-catalog').onclick = () => {
+        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
+        openCreateWithProducts(prods);
       };
 
       loadCatalogProducts();
@@ -346,6 +405,26 @@
     `;
   }
 
+  function updateCatalogBulkButtons() {
+    const count = catalogSelectedIds.size;
+    const b1 = $('#bulk-bundle-from-catalog');
+    const b2 = $('#bulk-multipack-from-catalog');
+    const b3 = $('#bulk-discount-from-catalog');
+
+    if (b1) {
+      b1.disabled = count < 1;
+      b1.textContent = `🎁 Create Bundle (${count})`;
+    }
+    if (b2) {
+      b2.disabled = count < 1;
+      b2.textContent = `⚡ Bulk Multi-Packs (${count})`;
+    }
+    if (b3) {
+      b3.disabled = count < 1;
+      b3.textContent = `＋ Discount Selected (${count})`;
+    }
+  }
+
   async function loadCatalogProducts(query = '') {
     const box = $('#catalog-results-box');
     if (!box) return;
@@ -360,10 +439,20 @@
       box.innerHTML = `
         <div style="overflow-x:auto;">
           <table class="polaris-table">
-            <thead><tr><th>PRODUCT</th><th>PRICE</th><th>STATUS</th><th>VARIANTS</th><th>ACTION</th></tr></thead>
+            <thead>
+              <tr>
+                <th style="width:36px;"><input type="checkbox" id="catalog-select-all"></th>
+                <th>PRODUCT</th>
+                <th>PRICE</th>
+                <th>STATUS</th>
+                <th>VARIANTS</th>
+                <th>ACTIONS</th>
+              </tr>
+            </thead>
             <tbody>
               ${products.map(p => `
                 <tr>
+                  <td><input type="checkbox" class="catalog-row-check" data-id="${esc(p.id)}" ${catalogSelectedIds.has(p.id) ? 'checked' : ''}></td>
                   <td>
                     <div style="display:flex;align-items:center;gap:10px;">
                       ${p.image ? `<img src="${esc(p.image)}" class="polaris-product-thumb" alt="">` : '<div class="polaris-product-thumb"></div>'}
@@ -373,7 +462,12 @@
                   <td><strong>$${esc(p.price)}</strong></td>
                   <td><span class="polaris-badge polaris-badge-success">${esc(p.status)}</span></td>
                   <td>${esc(p.variants_count || 1)} variant(s)</td>
-                  <td><button class="polaris-btn polaris-btn-plain start-promo-for-prod" data-id="${esc(p.id)}">＋ Discount Product</button></td>
+                  <td>
+                    <div style="display:flex;gap:6px;">
+                      <button class="polaris-btn polaris-btn-plain start-promo-for-prod" data-id="${esc(p.id)}">＋ Discount</button>
+                      <button class="polaris-btn polaris-btn-plain start-bundle-for-prod" data-id="${esc(p.id)}">🎁 Bundle</button>
+                    </div>
+                  </td>
                 </tr>
               `).join('')}
             </tbody>
@@ -381,10 +475,35 @@
         </div>
       `;
 
+      $('#catalog-select-all').onchange = (e) => {
+        const checked = e.target.checked;
+        $$('.catalog-row-check').forEach(cb => {
+          cb.checked = checked;
+          if (checked) catalogSelectedIds.add(cb.dataset.id);
+          else catalogSelectedIds.delete(cb.dataset.id);
+        });
+        updateCatalogBulkButtons();
+      };
+
+      $$('.catalog-row-check').forEach(cb => {
+        cb.onchange = () => {
+          if (cb.checked) catalogSelectedIds.add(cb.dataset.id);
+          else catalogSelectedIds.delete(cb.dataset.id);
+          updateCatalogBulkButtons();
+        };
+      });
+
       $$('.start-promo-for-prod').forEach(btn => {
         btn.onclick = () => {
           const p = currentProducts.find(x => x.id === btn.dataset.id);
           openCreateWithProduct(p);
+        };
+      });
+
+      $$('.start-bundle-for-prod').forEach(btn => {
+        btn.onclick = () => {
+          const p = currentProducts.find(x => x.id === btn.dataset.id);
+          openBundleModal('combo', p ? [p] : []);
         };
       });
     } catch (e) {
@@ -406,7 +525,7 @@
       box.innerHTML = `
         <div style="overflow-x:auto;">
           <table class="polaris-table">
-            <thead><tr><th>COLLECTION</th><th>PRODUCTS</th><th>HANDLE</th><th>ACTION</th></tr></thead>
+            <thead><tr><th>COLLECTION</th><th>PRODUCTS</th><th>HANDLE</th><th>ACTIONS</th></tr></thead>
             <tbody>
               ${collections.map(c => `
                 <tr>
@@ -418,7 +537,12 @@
                   </td>
                   <td><strong>${esc(c.products_count)} products</strong></td>
                   <td><code>${esc(c.handle)}</code></td>
-                  <td><button class="polaris-btn polaris-btn-plain start-promo-for-col" data-id="${esc(c.id)}">＋ Discount Collection</button></td>
+                  <td>
+                    <div style="display:flex;gap:6px;">
+                      <button class="polaris-btn polaris-btn-plain start-promo-for-col" data-id="${esc(c.id)}">＋ Discount All</button>
+                      <button class="polaris-btn polaris-btn-plain start-bundle-for-col" data-id="${esc(c.id)}" data-title="${esc(c.title)}">🎁 Create Collection Bundle</button>
+                    </div>
+                  </td>
                 </tr>
               `).join('')}
             </tbody>
@@ -429,6 +553,72 @@
       $$('.start-promo-for-col').forEach(btn => {
         btn.onclick = () => openCreateWithCollection(btn.dataset.id);
       });
+
+      $$('.start-bundle-for-col').forEach(btn => {
+        btn.onclick = async () => {
+          btn.disabled = true;
+          btn.textContent = 'Loading collection…';
+          try {
+            const { products } = await api('/products?collection_id=' + encodeURIComponent(btn.dataset.id));
+            openBundleModal('combo', products, btn.dataset.title + ' Bundle');
+          } catch (e) {
+            toast(e.message);
+          } finally {
+            btn.disabled = false;
+            btn.textContent = '🎁 Create Collection Bundle';
+          }
+        };
+      });
+    } catch (e) {
+      box.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
+    }
+  }
+
+  async function loadStoreBundles(query = '') {
+    const box = $('#bundle-results-box');
+    if (!box) return;
+    box.innerHTML = '<div class="polaris-empty-state">Loading bundles from your Shopify store…</div>';
+    try {
+      const { bundles } = await api('/bundles?q=' + encodeURIComponent(query));
+      if (!bundles.length) {
+        box.innerHTML = `
+          <div class="polaris-empty-state">
+            <p style="font-weight:600;font-size:14px;margin-bottom:6px;">No bundles found yet</p>
+            <p style="margin-bottom:14px;">Create combo bundles or bulk multi-packs to increase your store's Average Order Value (AOV).</p>
+            <button class="polaris-btn polaris-btn-primary" onclick="window.pmOpenBundleModal('combo')">＋ Create Your First Bundle</button>
+          </div>
+        `;
+        return;
+      }
+      box.innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="polaris-table">
+            <thead>
+              <tr><th>BUNDLE PRODUCT</th><th>BUNDLE PRICE</th><th>REGULAR / COMPARE</th><th>STATUS</th><th>TAGS</th><th>SHOPIFY ADMIN</th></tr>
+            </thead>
+            <tbody>
+              ${bundles.map(b => `
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      ${b.image ? `<img src="${esc(b.image)}" class="polaris-product-thumb" alt="">` : '<div class="polaris-product-thumb"></div>'}
+                      <div>
+                        <strong>${esc(b.title)}</strong>
+                        <div class="polaris-row-meta">${esc(b.handle)}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><strong>$${esc(b.price)}</strong></td>
+                  <td>${b.compare_at_price ? `<strike>$${esc(b.compare_at_price)}</strike> <span class="polaris-badge polaris-badge-success">Save $${(Number(b.compare_at_price) - Number(b.price)).toFixed(2)}</span>` : '—'}</td>
+                  <td>${statusBadge(b.status)}</td>
+                  <td>${(b.tags || []).slice(0, 3).map(t => `<span class="polaris-badge polaris-badge-neutral" style="margin-right:3px;">${esc(t)}</span>`).join('')}</td>
+                  <td><a href="${esc(b.admin_url)}" target="_blank" class="polaris-btn polaris-btn-plain">Open in Admin ↗</a></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
     } catch (e) {
       box.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
     }
@@ -673,6 +863,15 @@
     }
   }
 
+  function openCreateWithProducts(prods) {
+    openCreate();
+    if (prods && prods.length) {
+      prods.forEach(p => selected.set(p.id, p));
+      renderPickerProducts(prods);
+      $('#selected-summary').textContent = `${selected.size} products selected`;
+    }
+  }
+
   async function openCreateWithCollection(collectionId) {
     openCreate();
     selectionMode = 'collections';
@@ -767,11 +966,194 @@
     }
   }
 
+  // --- BUNDLE CREATOR LOGIC ---
+  function updateBundlePreview() {
+    let totalVal = 0;
+    bundleSelected.forEach(p => {
+      totalVal += Number(p.price || 0);
+    });
+
+    $('#bundle-preview-orig').textContent = '$' + totalVal.toFixed(2);
+
+    let bundlePrice = totalVal;
+    const type = $('#bundle-pricing-type')?.value || 'percentage';
+
+    if (type === 'percentage') {
+      const pct = Number($('#bundle-discount-pct')?.value || 0);
+      bundlePrice = Math.max(0.01, totalVal * (1 - pct / 100));
+    } else if (type === 'fixed_price') {
+      bundlePrice = Number($('#bundle-fixed-price')?.value || totalVal);
+    } else if (type === 'fixed_discount') {
+      const off = Number($('#bundle-fixed-discount')?.value || 0);
+      bundlePrice = Math.max(0.01, totalVal - off);
+    }
+
+    $('#bundle-preview-price').textContent = '$' + bundlePrice.toFixed(2);
+
+    const savings = Math.max(0, totalVal - bundlePrice);
+    const savingsPct = totalVal > 0 ? Math.round((savings / totalVal) * 100) : 0;
+    $('#bundle-preview-save').textContent = `$${savings.toFixed(2)} (${savingsPct}% off)`;
+
+    // Render Chips
+    const chipsBox = $('#bundle-selected-chips');
+    if (chipsBox) {
+      chipsBox.innerHTML = [...bundleSelected.values()].map(p => `
+        <span class="polaris-chip">
+          ${p.image ? `<img src="${esc(p.image)}" alt="">` : ''}
+          ${esc(p.title)} ($${esc(p.price)})
+          <button type="button" class="polaris-chip-remove" data-remove-bundle-id="${esc(p.id)}">×</button>
+        </span>
+      `).join('');
+
+      $$('[data-remove-bundle-id]').forEach(b => {
+        b.onclick = () => {
+          bundleSelected.delete(b.dataset.removeBundleId);
+          updateBundlePreview();
+        };
+      });
+    }
+  }
+
+  function openBundleModal(mode = 'combo', initialProducts = [], suggestedTitle = '') {
+    bundleDialogMode = mode;
+    $('#bundle-dialog-mode-combo').classList.toggle('active', mode === 'combo');
+    $('#bundle-dialog-mode-multipack').classList.toggle('active', mode === 'multipack');
+    $('#bundle-mode-combo-view').classList.toggle('hidden', mode !== 'combo');
+    $('#bundle-mode-multipack-view').classList.toggle('hidden', mode !== 'multipack');
+
+    bundleSelected.clear();
+    if (initialProducts && initialProducts.length) {
+      initialProducts.forEach(p => bundleSelected.set(p.id, p));
+    }
+
+    if (suggestedTitle) {
+      $('#bundle-title').value = suggestedTitle;
+    } else if (bundleSelected.size > 0) {
+      const names = [...bundleSelected.values()].map(p => p.title).slice(0, 2).join(' & ');
+      $('#bundle-title').value = names + (bundleSelected.size > 2 ? ' + More Bundle' : ' Value Bundle');
+    } else {
+      $('#bundle-title').value = 'Special Value Bundle';
+    }
+
+    $('#bundle-error').classList.add('hidden');
+    updateBundlePreview();
+    $('#bundle-dialog').showModal();
+  }
+  window.pmOpenBundleModal = openBundleModal;
+
+  async function searchBundleProductsPicker() {
+    const box = $('#bundle-picker-results');
+    box.innerHTML = '<div class="polaris-empty-picker">Searching store products…</div>';
+    try {
+      const q = $('#bundle-product-search')?.value || '';
+      const { products } = await api('/products?q=' + encodeURIComponent(q));
+      box.innerHTML = products.length ? products.map(p => `
+        <label class="polaris-product-item">
+          <input type="checkbox" data-bundle-picker-id="${esc(p.id)}" ${bundleSelected.has(p.id) ? 'checked' : ''}>
+          ${p.image ? `<img src="${esc(p.image)}" class="polaris-product-thumb" alt="">` : '<div class="polaris-product-thumb"></div>'}
+          <div style="flex:1;">
+            <strong>${esc(p.title)}</strong>
+            <div class="polaris-row-meta">$${esc(p.price)} · ${esc(p.status)}</div>
+          </div>
+        </label>
+      `).join('') : '<div class="polaris-empty-picker">No matching products found.</div>';
+
+      $$('[data-bundle-picker-id]').forEach(cb => {
+        cb.onchange = () => {
+          const p = products.find(x => x.id === cb.dataset.bundlePickerId);
+          if (cb.checked) {
+            if (p) bundleSelected.set(p.id, p);
+          } else {
+            bundleSelected.delete(cb.dataset.bundlePickerId);
+          }
+          updateBundlePreview();
+        };
+      });
+    } catch (e) {
+      box.innerHTML = '<div class="polaris-empty-picker">' + esc(e.message) + '</div>';
+    }
+  }
+
+  async function submitBundleCreation(e) {
+    e.preventDefault();
+    const err = $('#bundle-error');
+    err.classList.add('hidden');
+
+    if (bundleDialogMode === 'combo') {
+      if (bundleSelected.size < 1) {
+        err.textContent = 'Please select at least 1 product to include in the bundle.';
+        err.classList.remove('hidden');
+        return;
+      }
+
+      const payload = {
+        title: $('#bundle-title').value.trim(),
+        product_ids: [...bundleSelected.keys()],
+        pricing_type: $('#bundle-pricing-type').value,
+        discount_percent: Number($('#bundle-discount-pct').value),
+        fixed_price: Number($('#bundle-fixed-price').value),
+        fixed_discount: Number($('#bundle-fixed-discount').value),
+        status: $('#bundle-status').value,
+        custom_description: $('#bundle-custom-desc').value.trim(),
+        tags: $('#bundle-tags').value.trim()
+      };
+
+      const btn = $('#create-bundle-submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Creating in Shopify…';
+
+      try {
+        const res = await api('/bundles', { method: 'POST', body: JSON.stringify(payload) });
+        $('#bundle-dialog').close();
+        toast(res.message || 'Bundle product created successfully!');
+        setPage('bundles');
+      } catch (e) {
+        err.textContent = e.message;
+        err.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Bundle Product';
+      }
+    } else {
+      // Multipack mode
+      if (bundleSelected.size < 1) {
+        err.textContent = 'Please choose at least 1 product to generate bulk multi-packs for.';
+        err.classList.remove('hidden');
+        return;
+      }
+
+      const payload = {
+        product_ids: [...bundleSelected.keys()],
+        pack_size: Number($('#multipack-size').value),
+        discount_percent: Number($('#multipack-discount-pct').value),
+        status: $('#multipack-status').value,
+        tag: $('#multipack-tag').value.trim()
+      };
+
+      const btn = $('#create-bundle-submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Generating Multi-Packs…';
+
+      try {
+        const res = await api('/bundles/bulk-multipack', { method: 'POST', body: JSON.stringify(payload) });
+        $('#bundle-dialog').close();
+        toast(res.message || `Created ${res.count} multi-pack bundles!`);
+        setPage('bundles');
+      } catch (e) {
+        err.textContent = e.message;
+        err.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Bundle Product';
+      }
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     $('#new-campaign').onclick = openCreate;
     $('#campaign-form').addEventListener('submit', createCampaign);
 
-    // Search and Picker Controls
+    // Search and Picker Controls for Campaign Scheduler
     $('#search-products').onclick = searchProducts;
     $('#product-search').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); searchProducts(); } };
     $('#product-search').oninput = () => {
@@ -806,6 +1188,30 @@
         selectProduct(cb.dataset.productId, true);
       });
     };
+
+    // Bundle Dialog Controls
+    $('#bundle-dialog-mode-combo').onclick = () => openBundleModal('combo', [...bundleSelected.values()]);
+    $('#bundle-dialog-mode-multipack').onclick = () => openBundleModal('multipack', [...bundleSelected.values()]);
+    $('#bundle-form').addEventListener('submit', submitBundleCreation);
+
+    $('#bundle-product-search-btn').onclick = searchBundleProductsPicker;
+    $('#bundle-product-search').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); searchBundleProductsPicker(); } };
+    $('#bundle-product-search').oninput = () => {
+      clearTimeout(bundleProductTimer);
+      bundleProductTimer = setTimeout(searchBundleProductsPicker, 450);
+    };
+
+    $('#bundle-pricing-type').onchange = () => {
+      const v = $('#bundle-pricing-type').value;
+      $('#bundle-pricing-pct-box').classList.toggle('hidden', v !== 'percentage');
+      $('#bundle-pricing-fixed-price-box').classList.toggle('hidden', v !== 'fixed_price');
+      $('#bundle-pricing-fixed-discount-box').classList.toggle('hidden', v !== 'fixed_discount');
+      updateBundlePreview();
+    };
+
+    $('#bundle-discount-pct').oninput = updateBundlePreview;
+    $('#bundle-fixed-price').oninput = updateBundlePreview;
+    $('#bundle-fixed-discount').oninput = updateBundlePreview;
 
     $('#confirm-restore-button').onclick = submitRestore;
 

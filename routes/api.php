@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\BundleController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,11 @@ Route::middleware(['shopify.session', 'throttle:120,1'])->group(function () {
     Route::post('/campaigns/{campaign}/retry', [CampaignController::class, 'retry'])->whereNumber('campaign');
     Route::post('/campaigns/{campaign}/cancel', [CampaignController::class, 'cancel'])->whereNumber('campaign');
     Route::post('/campaigns/{campaign}/restore', [CampaignController::class, 'restore'])->whereNumber('campaign');
+
+    // Bundles API
+    Route::get('/bundles', [BundleController::class, 'index']);
+    Route::post('/bundles', [BundleController::class, 'store']);
+    Route::post('/bundles/bulk-multipack', [BundleController::class, 'bulkMultipack']);
 
     // Billing API
     Route::get('/billing', [BillingController::class, 'index']);
