@@ -11,7 +11,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias(['shopify.session' => VerifyShopifySessionToken::class]);
         $middleware->append(\App\Http\Middleware\ShopifySecurityHeaders::class);
-        $middleware->validateCsrfTokens(except: ['webhooks/shopify']);
+        $middleware->validateCsrfTokens(except: [
+            'webhooks/*',
+            'app/webhooks/*',
+            'webhooks/shopify',
+            'app/webhooks/shopify',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Report errors through the configured production logger; never expose details with APP_DEBUG=false.

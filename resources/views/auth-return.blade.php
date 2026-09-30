@@ -66,7 +66,8 @@ p {
 </head>
 <body>
 @php
-    $appBaseUrl = rtrim((string)(config('shopify.app_url') ?: request()->getSchemeAndHttpHost()), '/');
+    $rawBaseUrl = (string)(config('shopify.app_url') ?: request()->getSchemeAndHttpHost());
+    $appBaseUrl = preg_replace('~/app/?\z~i', '', rtrim($rawBaseUrl, '/'));
     $destinationParams = ['shop' => $shop];
     if (!empty($host)) {
         $destinationParams['host'] = $host;

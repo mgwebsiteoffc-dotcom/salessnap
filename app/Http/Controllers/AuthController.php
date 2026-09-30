@@ -30,7 +30,8 @@ class AuthController {
             abort(500, 'Database error while preparing Shopify authorization. Run database migrations with `php artisan migrate`.');
         }
 
-        $appUrl = rtrim((string)(config('shopify.app_url') ?: $request->getSchemeAndHttpHost()), '/');
+        $rawUrl = (string)(config('shopify.app_url') ?: $request->getSchemeAndHttpHost());
+        $appUrl = preg_replace('~/app/?\z~i', '', rtrim($rawUrl, '/'));
         $params = [
             'client_id' => $apiKey,
             'scope' => (string) config('shopify.scopes', 'read_products,write_products'),
