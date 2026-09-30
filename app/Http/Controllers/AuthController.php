@@ -5,24 +5,35 @@ use App\Models\OAuthState;
 use App\Models\Shop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class AuthController {
     public function start(Request $request) {
         $shop = strtolower((string)$request->query('shop'));
-        abort_unless($this->validShop($shop), 400, 'A valid *.myshopify.com shop is required.');
-        // Always re-authorize on a fresh Shopify install/reinstall entry point.
+        abort_unless($this->validShop($shop), 400, 'A valid *.myshopify.com shop domain is required.');
+
+        $apiKey = (string) config('shopify.api_key');
+        $apiSecret = (string) config('shopify.api_secret');
+        abort_unless($apiKey !== '' && $apiSecret !== '', 500, 'Shopify app credentials (SHOPIFY_API_KEY and SHOPIFY_API_SECRET) are not configured.');
+
         $state = Str::random(48);
-        OAuthState::where('expires_at', '<', now())->delete();
-        OAuthState::create([
-            'state_hash' => hash('sha256', $state),
-            'shop_domain' => $shop,
-            'expires_at' => now()->addMinutes(10),
-        ]);
+        try {
+            OAuthState::where('expires_at', '<', now())->delete();
+            OAuthState::create([
+                'state_hash' => hash('sha256', $state),
+                'shop_domain' => $shop,
+                'expires_at' => now()->addMinutes(10),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('OAuth state creation failed: ' . $e->getMessage());
+            abort(500, 'Database error while preparing Shopify authorization. Run database migrations with `php artisan migrate`.');
+        }
+
         $appUrl = rtrim((string)(config('shopify.app_url') ?: $request->getSchemeAndHttpHost()), '/');
         $params = [
-            'client_id' => config('shopify.api_key'),
-            'scope' => config('shopify.scopes'),
+            'client_id' => $apiKey,
+            'scope' => (string) config('shopify.scopes', 'read_products,write_products'),
             'redirect_uri' => $appUrl . '/auth/callback',
             'state' => $state,
         ];
@@ -35,8 +46,15 @@ class AuthController {
         abort_unless($this->validShop($shop), 400, 'Invalid shop domain.');
         abort_unless(isset($query['timestamp']) && abs(time() - (int)$query['timestamp']) <= 600, 401, 'OAuth callback is expired. Please retry installation.');
         abort_unless($this->validHmac($query), 401, 'Invalid Shopify OAuth signature.');
+
         $state = (string)($query['state'] ?? '');
-        $row = OAuthState::where('state_hash', hash('sha256', $state))->where('shop_domain', $shop)->where('expires_at', '>', now())->first();
+        try {
+            $row = OAuthState::where('state_hash', hash('sha256', $state))->where('shop_domain', $shop)->where('expires_at', '>', now())->first();
+        } catch (\Throwable $e) {
+            Log::error('OAuth callback state query failed: ' . $e->getMessage());
+            abort(500, 'Database error during OAuth callback. Ensure database is running and migrated.');
+        }
+
         abort_unless($row, 401, 'OAuth state is invalid or expired. Please start installation again.');
         $row->delete();
 
@@ -46,7 +64,14 @@ class AuthController {
             'code' => (string)$request->query('code'),
         ]);
 
-        abort_unless($response->successful() && $response->json('access_token'), 502, 'Failed to obtain access token from Shopify. Please retry installation.');
+        if (!$response->successful() || !$response->json('access_token')) {
+            Log::error('Shopify access token exchange failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            abort(502, 'Failed to obtain access token from Shopify (HTTP ' . $response->status() . '). Please retry installation.');
+        }
+
         $data = $response->json();
         $granted = array_filter(explode(',', (string)($data['scope'] ?? '')));
         foreach (array_filter(explode(',', (string)config('shopify.scopes'))) as $required) {
@@ -56,18 +81,23 @@ class AuthController {
         $expiresIn = isset($data['expires_in']) ? (int)$data['expires_in'] : null;
         $refreshTokenExpiresIn = isset($data['refresh_token_expires_in']) ? (int)$data['refresh_token_expires_in'] : null;
 
-        Shop::updateOrCreate(
-            ['shop_domain' => $shop],
-            [
-                'access_token' => $data['access_token'],
-                'refresh_token' => $data['refresh_token'] ?? null,
-                'token_expires_at' => $expiresIn ? now()->addSeconds($expiresIn) : null,
-                'refresh_token_expires_at' => $refreshTokenExpiresIn ? now()->addSeconds($refreshTokenExpiresIn) : null,
-                'granted_scopes' => $data['scope'] ?? config('shopify.scopes'),
-                'installed_at' => now(),
-                'uninstalled_at' => null,
-            ]
-        );
+        try {
+            Shop::updateOrCreate(
+                ['shop_domain' => $shop],
+                [
+                    'access_token' => $data['access_token'],
+                    'refresh_token' => $data['refresh_token'] ?? null,
+                    'token_expires_at' => $expiresIn ? now()->addSeconds($expiresIn) : null,
+                    'refresh_token_expires_at' => $refreshTokenExpiresIn ? now()->addSeconds($refreshTokenExpiresIn) : null,
+                    'granted_scopes' => $data['scope'] ?? config('shopify.scopes'),
+                    'installed_at' => now(),
+                    'uninstalled_at' => null,
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to save shop record in database: ' . $e->getMessage());
+            abort(500, 'Database error saving shop credentials. Run `php artisan migrate`.');
+        }
 
         return response()->view('auth-return', [
             'shop' => $shop,
