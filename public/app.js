@@ -15,12 +15,13 @@
   let restoreId = null;
   let productTimer = null;
   let authRedirectStarted = false;
-  let selectionMode = 'products'; // 'products' or 'collections'
+  let selectionMode = 'products';
+  let catalogTab = 'products'; // 'products' or 'collections'
 
   const pageHeaders = {
     overview: ['SaleSnap', 'Schedule selected product changes with pre-change snapshots and restore reporting.'],
     campaigns: ['Campaigns', 'Plan scheduled product promotions and review their restore status.'],
-    products: ['Products & Collections', 'Search products and browse collections in your Shopify catalog.'],
+    products: ['Products & Collections', 'Explore store products and collections to launch flash-sale discounts.'],
     snapshots: ['Snapshots & Restores', 'Review campaign snapshots, restore outcomes, and any skipped fields.'],
     activity: ['Activity Log', 'A clear audit trail of scheduled campaigns and restore actions.'],
     billing: ['Billing & Plans', 'Manage your SaleSnap app subscription and unlock advanced capabilities.'],
@@ -224,14 +225,49 @@
 
     if (page === 'products') {
       body.innerHTML = `
-        <div style="display:flex;gap:10px;margin-bottom:16px;">
-          <input class="polaris-input" id="detail-product-search" placeholder="Search catalog by title..." style="max-width:400px;">
-          <button class="polaris-btn polaris-btn-primary" id="detail-product-go">Search</button>
+        <div style="margin-bottom:16px;">
+          <div class="polaris-segmented-control" style="max-width:320px;margin-bottom:14px;">
+            <button class="polaris-segment-btn ${catalogTab === 'products' ? 'active' : ''}" id="catalog-tab-products">Products</button>
+            <button class="polaris-segment-btn ${catalogTab === 'collections' ? 'active' : ''}" id="catalog-tab-collections">Collections</button>
+          </div>
+          <div id="catalog-search-bar" style="display:flex;gap:10px;max-width:500px;">
+            <input class="polaris-input" id="catalog-search-input" placeholder="Search products by title...">
+            <button class="polaris-btn polaris-btn-primary" id="catalog-search-btn">Search</button>
+          </div>
         </div>
-        <div id="detail-products-results"><div class="polaris-empty-state">Search your catalog above to preview products.</div></div>
+        <div id="catalog-results-box"><div class="polaris-empty-state">Loading your catalog…</div></div>
       `;
-      $('#detail-product-go').onclick = () => searchDetailProducts();
-      $('#detail-product-search').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); searchDetailProducts(); } };
+
+      $('#catalog-tab-products').onclick = () => {
+        catalogTab = 'products';
+        $('#catalog-tab-products').classList.add('active');
+        $('#catalog-tab-collections').classList.remove('active');
+        $('#catalog-search-input').placeholder = 'Search products by title...';
+        loadCatalogProducts();
+      };
+
+      $('#catalog-tab-collections').onclick = () => {
+        catalogTab = 'collections';
+        $('#catalog-tab-collections').classList.add('active');
+        $('#catalog-tab-products').classList.remove('active');
+        $('#catalog-search-input').placeholder = 'Filter collections...';
+        loadCatalogCollections();
+      };
+
+      $('#catalog-search-btn').onclick = () => {
+        if (catalogTab === 'products') loadCatalogProducts($('#catalog-search-input').value);
+        else loadCatalogCollections($('#catalog-search-input').value);
+      };
+
+      $('#catalog-search-input').onkeydown = e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (catalogTab === 'products') loadCatalogProducts($('#catalog-search-input').value);
+          else loadCatalogCollections($('#catalog-search-input').value);
+        }
+      };
+
+      loadCatalogProducts();
       return;
     }
 
@@ -308,6 +344,94 @@
       </div>
       <p style="font-size:12px;color:#6d7175;margin-top:16px;">SaleSnap operates using Shopify Admin GraphQL API with session tokens. Stored prices and snapshots are encrypted at rest.</p>
     `;
+  }
+
+  async function loadCatalogProducts(query = '') {
+    const box = $('#catalog-results-box');
+    if (!box) return;
+    box.innerHTML = '<div class="polaris-empty-state">Searching products…</div>';
+    try {
+      const { products } = await api('/products?q=' + encodeURIComponent(query));
+      currentProducts = products;
+      if (!products.length) {
+        box.innerHTML = '<div class="polaris-empty-state">No products found matching your search.</div>';
+        return;
+      }
+      box.innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="polaris-table">
+            <thead><tr><th>PRODUCT</th><th>PRICE</th><th>STATUS</th><th>VARIANTS</th><th>ACTION</th></tr></thead>
+            <tbody>
+              ${products.map(p => `
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      ${p.image ? `<img src="${esc(p.image)}" class="polaris-product-thumb" alt="">` : '<div class="polaris-product-thumb"></div>'}
+                      <div><strong>${esc(p.title)}</strong><div class="polaris-row-meta">${esc(p.handle)}</div></div>
+                    </div>
+                  </td>
+                  <td><strong>$${esc(p.price)}</strong></td>
+                  <td><span class="polaris-badge polaris-badge-success">${esc(p.status)}</span></td>
+                  <td>${esc(p.variants_count || 1)} variant(s)</td>
+                  <td><button class="polaris-btn polaris-btn-plain start-promo-for-prod" data-id="${esc(p.id)}">＋ Discount Product</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      $$('.start-promo-for-prod').forEach(btn => {
+        btn.onclick = () => {
+          const p = currentProducts.find(x => x.id === btn.dataset.id);
+          openCreateWithProduct(p);
+        };
+      });
+    } catch (e) {
+      box.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
+    }
+  }
+
+  async function loadCatalogCollections(query = '') {
+    const box = $('#catalog-results-box');
+    if (!box) return;
+    box.innerHTML = '<div class="polaris-empty-state">Loading collections…</div>';
+    try {
+      const { collections } = await api('/collections?q=' + encodeURIComponent(query));
+      currentCollections = collections;
+      if (!collections.length) {
+        box.innerHTML = '<div class="polaris-empty-state">No collections found in your store.</div>';
+        return;
+      }
+      box.innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="polaris-table">
+            <thead><tr><th>COLLECTION</th><th>PRODUCTS</th><th>HANDLE</th><th>ACTION</th></tr></thead>
+            <tbody>
+              ${collections.map(c => `
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      ${c.image ? `<img src="${esc(c.image)}" class="polaris-product-thumb" alt="">` : '<div class="polaris-product-thumb"></div>'}
+                      <strong>${esc(c.title)}</strong>
+                    </div>
+                  </td>
+                  <td><strong>${esc(c.products_count)} products</strong></td>
+                  <td><code>${esc(c.handle)}</code></td>
+                  <td><button class="polaris-btn polaris-btn-plain start-promo-for-col" data-id="${esc(c.id)}">＋ Discount Collection</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      $$('.start-promo-for-col').forEach(btn => {
+        btn.onclick = () => openCreateWithCollection(btn.dataset.id);
+      });
+    } catch (e) {
+      box.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
+    }
   }
 
   async function loadBillingPage(container) {
@@ -404,32 +528,6 @@
     }
   }
 
-  async function searchDetailProducts() {
-    let target = $('#detail-products-results');
-    target.innerHTML = '<div class="polaris-empty-state">Searching catalog…</div>';
-    try {
-      const q = $('#detail-product-search')?.value || '';
-      const { products } = await api('/products?q=' + encodeURIComponent(q));
-      target.innerHTML = products.length ? `
-        <table class="polaris-table">
-          <thead><tr><th>PRODUCT</th><th>PRICE</th><th>STATUS</th><th>HANDLE</th></tr></thead>
-          <tbody>
-            ${products.map(p => `
-              <tr>
-                <td><strong>${esc(p.title)}</strong></td>
-                <td>$${esc(p.price)}</td>
-                <td><span class="polaris-badge polaris-badge-success">${esc(p.status)}</span></td>
-                <td><code>${esc(p.handle)}</code></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      ` : '<div class="polaris-empty-state">No matching products found.</div>';
-    } catch (e) {
-      target.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
-    }
-  }
-
   function selectProduct(id, checked) {
     if (checked) {
       if (selected.size >= 250) {
@@ -510,23 +608,50 @@
   }
 
   function setDefaultDates() {
-    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    let zone = 'UTC';
+    try {
+      zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    } catch (e) {}
+
     const sel = $('#timezone');
-    sel.innerHTML = '';
-    [zone, 'UTC', 'Asia/Kolkata', 'America/New_York', 'Europe/London'].filter((v, i, a) => a.indexOf(v) === i).forEach(z => {
-      let o = document.createElement('option');
-      o.value = z;
-      o.textContent = z + (z === zone ? ' (store local)' : '');
-      sel.append(o);
-    });
+    if (sel) {
+      sel.innerHTML = '';
+      const timezones = [
+        zone,
+        'UTC',
+        'Asia/Kolkata',
+        'Asia/Calcutta',
+        'Asia/Dubai',
+        'Asia/Singapore',
+        'Asia/Tokyo',
+        'Europe/London',
+        'Europe/Paris',
+        'Europe/Berlin',
+        'America/New_York',
+        'America/Chicago',
+        'America/Denver',
+        'America/Los_Angeles',
+        'America/Toronto',
+        'Australia/Sydney',
+        'Pacific/Auckland'
+      ].filter((v, i, a) => v && a.indexOf(v) === i);
+
+      timezones.forEach(z => {
+        let o = document.createElement('option');
+        o.value = z;
+        o.textContent = z + (z === zone ? ' (Detected Store Local)' : '');
+        if (z === zone) o.selected = true;
+        sel.append(o);
+      });
+    }
 
     let start = new Date(Date.now() + 3600_000);
     let end = new Date(Date.now() + 48 * 3600_000);
     function localIso(d) {
       return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     }
-    $('#starts-at').value = localIso(start);
-    $('#ends-at').value = localIso(end);
+    if ($('#starts-at')) $('#starts-at').value = localIso(start);
+    if ($('#ends-at')) $('#ends-at').value = localIso(end);
   }
 
   function openCreate() {
@@ -537,6 +662,30 @@
     $('#campaign-dialog').showModal();
     setDefaultDates();
     if (selectionMode === 'collections') loadCollections();
+  }
+
+  function openCreateWithProduct(p) {
+    openCreate();
+    if (p) {
+      selected.set(p.id, p);
+      renderPickerProducts([p]);
+      $('#selected-summary').textContent = '1 product selected';
+    }
+  }
+
+  async function openCreateWithCollection(collectionId) {
+    openCreate();
+    selectionMode = 'collections';
+    $('#mode-collections').classList.add('active');
+    $('#mode-products').classList.remove('active');
+    $('#product-search-container').classList.add('hidden');
+    $('#collection-search-container').classList.remove('hidden');
+    await loadCollections();
+    if ($('#collection-select')) {
+      $('#collection-select').value = collectionId;
+      await loadCollectionProducts();
+      $('#select-all-results')?.click();
+    }
   }
 
   function openRestore(id, name) {
@@ -670,7 +819,6 @@
       renderCampaigns();
     });
 
-    // Check if URL specifies a target tab (e.g. from App Bridge or Billing return)
     const urlParams = new URLSearchParams(window.location.search);
     const initialPage = urlParams.get('page') || 'overview';
     if (urlParams.get('subscribed')) {
