@@ -36,6 +36,10 @@
 }
 
 * { box-sizing: border-box; }
+img {
+  max-width: 100%;
+  height: auto;
+}
 body {
   margin: 0;
   padding: 0;
@@ -517,11 +521,67 @@ body {
   border-bottom: none;
 }
 .polaris-product-thumb {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  max-height: 36px;
   border-radius: 4px;
   object-fit: cover;
+  flex-shrink: 0;
   background: #eee;
+}
+.polaris-product-item img {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  max-height: 36px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.polaris-chips-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.polaris-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f2f3;
+  border: 1px solid #e1e3e5;
+  border-radius: 16px;
+  padding: 4px 10px 4px 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.polaris-chip img {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.polaris-chip-remove {
+  background: none;
+  border: none;
+  color: #6d7175;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 0 0 4px;
+}
+.polaris-chip-remove:hover {
+  color: #d72c0d;
 }
 .polaris-selection-bar {
   display: flex;
@@ -2042,23 +2102,36 @@ body {
     const savingsPct = totalVal > 0 ? Math.round((savings / totalVal) * 100) : 0;
     $('#bundle-preview-save').textContent = `$${savings.toFixed(2)} (${savingsPct}% off)`;
 
-    // Render Chips
+    // Render Compact Cart Items List
     const chipsBox = $('#bundle-selected-chips');
     if (chipsBox) {
-      chipsBox.innerHTML = [...bundleSelected.values()].map(p => `
-        <span class="polaris-chip">
-          ${p.image ? `<img src="${esc(p.image)}" alt="">` : ''}
-          ${esc(p.title)} ($${esc(p.price)})
-          <button type="button" class="polaris-chip-remove" data-remove-bundle-id="${esc(p.id)}">×</button>
-        </span>
-      `).join('');
+      if (!bundleSelected.size) {
+        chipsBox.innerHTML = '<div style="font-size:12px;color:#6d7175;padding:6px 0;">No products selected yet. Search below to add items to this bundle.</div>';
+      } else {
+        chipsBox.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:6px;width:100%;">
+            ${[...bundleSelected.values()].map(p => `
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 10px;background:#f6f6f7;border:1px solid #e1e3e5;border-radius:6px;">
+                <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
+                  ${p.image ? `<img src="${esc(p.image)}" style="width:32px;height:32px;min-width:32px;max-width:32px;max-height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;" alt="">` : '<div style="width:32px;height:32px;min-width:32px;max-width:32px;max-height:32px;background:#ddd;border-radius:4px;flex-shrink:0;"></div>'}
+                  <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    <div style="font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(p.title)}</div>
+                    <div style="font-size:11px;color:#6d7175;">$${esc(p.price)}</div>
+                  </div>
+                </div>
+                <button type="button" class="polaris-btn polaris-btn-plain" data-remove-bundle-id="${esc(p.id)}" style="color:#d72c0d;font-size:16px;padding:2px 6px;line-height:1;" title="Remove from bundle">×</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
 
-      $$('[data-remove-bundle-id]').forEach(b => {
-        b.onclick = () => {
-          bundleSelected.delete(b.dataset.removeBundleId);
-          updateBundlePreview();
-        };
-      });
+        $$('[data-remove-bundle-id]').forEach(b => {
+          b.onclick = () => {
+            bundleSelected.delete(b.dataset.removeBundleId);
+            updateBundlePreview();
+          };
+        });
+      }
     }
   }
 
@@ -2134,17 +2207,41 @@ body {
         return;
       }
 
+      const pricingType = $('#bundle-pricing-type').value;
       const payload = {
         title: $('#bundle-title').value.trim(),
         product_ids: [...bundleSelected.keys()],
-        pricing_type: $('#bundle-pricing-type').value,
-        discount_percent: Number($('#bundle-discount-pct').value),
-        fixed_price: Number($('#bundle-fixed-price').value),
-        fixed_discount: Number($('#bundle-fixed-discount').value),
+        pricing_type: pricingType,
         status: $('#bundle-status').value,
         custom_description: $('#bundle-custom-desc').value.trim(),
         tags: $('#bundle-tags').value.trim()
       };
+
+      if (pricingType === 'percentage') {
+        const pct = Number($('#bundle-discount-pct').value);
+        if (isNaN(pct) || pct < 0 || pct > 99) {
+          err.textContent = 'Please enter a valid discount percentage (0-99%).';
+          err.classList.remove('hidden');
+          return;
+        }
+        payload.discount_percent = pct;
+      } else if (pricingType === 'fixed_price') {
+        const fp = Number($('#bundle-fixed-price').value);
+        if (isNaN(fp) || fp <= 0) {
+          err.textContent = 'Please enter a valid bundle price greater than $0.';
+          err.classList.remove('hidden');
+          return;
+        }
+        payload.fixed_price = fp;
+      } else if (pricingType === 'fixed_discount') {
+        const fd = Number($('#bundle-fixed-discount').value);
+        if (isNaN(fd) || fd <= 0) {
+          err.textContent = 'Please enter a valid discount amount greater than $0.';
+          err.classList.remove('hidden');
+          return;
+        }
+        payload.fixed_discount = fd;
+      }
 
       const btn = $('#create-bundle-submit-btn');
       btn.disabled = true;
@@ -2160,7 +2257,7 @@ body {
         err.classList.remove('hidden');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Create Bundle Product';
+        btn.textContent = 'Create Bundle in Shopify';
       }
     } else {
       // Multipack mode
@@ -2192,7 +2289,7 @@ body {
         err.classList.remove('hidden');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Create Bundle Product';
+        btn.textContent = 'Create Bundle in Shopify';
       }
     }
   }

@@ -510,11 +510,25 @@ body {
   border-bottom: none;
 }
 .polaris-product-thumb {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  max-height: 36px;
   border-radius: 4px;
   object-fit: cover;
+  flex-shrink: 0;
   background: #eee;
+}
+.polaris-product-item img {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  max-height: 36px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 .polaris-selection-bar {
   display: flex;

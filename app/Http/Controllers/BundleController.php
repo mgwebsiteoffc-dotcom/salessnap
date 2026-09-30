@@ -17,19 +17,27 @@ class BundleController {
 
     public function store(Request $request, ShopifyGraphql $graphql) {
         $shop = $request->attributes->get('shop');
+        $pricingType = (string) $request->input('pricing_type', 'percentage');
 
-        $data = $request->validate([
+        $rules = [
             'title' => ['required', 'string', 'max:255'],
             'product_ids' => ['required', 'array', 'min:1', 'max:50'],
             'product_ids.*' => ['required', 'string', 'regex:/^gid:\/\/shopify\/Product\/\d+$/'],
             'pricing_type' => ['required', 'in:percentage,fixed_price,fixed_discount'],
-            'discount_percent' => ['nullable', 'numeric', 'min:0', 'max:99'],
-            'fixed_price' => ['nullable', 'numeric', 'min:0.01'],
-            'fixed_discount' => ['nullable', 'numeric', 'min:0.01'],
             'status' => ['required', 'in:ACTIVE,DRAFT'],
             'custom_description' => ['nullable', 'string', 'max:2000'],
             'tags' => ['nullable', 'string', 'max:255'],
-        ]);
+        ];
+
+        if ($pricingType === 'percentage') {
+            $rules['discount_percent'] = ['required', 'numeric', 'min:0', 'max:99'];
+        } elseif ($pricingType === 'fixed_price') {
+            $rules['fixed_price'] = ['required', 'numeric', 'min:0.01'];
+        } elseif ($pricingType === 'fixed_discount') {
+            $rules['fixed_discount'] = ['required', 'numeric', 'min:0.01'];
+        }
+
+        $data = $request->validate($rules);
 
         $productMap = $graphql->productsByIds($shop, $data['product_ids']);
         if (empty($productMap)) {
