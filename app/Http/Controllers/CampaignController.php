@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\Campaign;
 use App\Models\CampaignLog;
 use App\Services\CampaignRunner;
+use App\Services\ShopifyGraphql;
 use Carbon\CarbonImmutable;
 use DateTimeZone;
 use Illuminate\Http\Request;
