@@ -14,6 +14,10 @@ class Shop extends Model {
         'token_expires_at',
         'refresh_token_expires_at',
         'granted_scopes',
+        'plan',
+        'charge_id',
+        'subscription_status',
+        'trial_ends_at',
         'installed_at',
         'uninstalled_at',
     ];
@@ -24,6 +28,7 @@ class Shop extends Model {
             'refresh_token' => 'encrypted',
             'token_expires_at' => 'datetime',
             'refresh_token_expires_at' => 'datetime',
+            'trial_ends_at' => 'datetime',
             'installed_at' => 'datetime',
             'uninstalled_at' => 'datetime',
         ];
