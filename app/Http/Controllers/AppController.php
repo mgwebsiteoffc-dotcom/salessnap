@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Shop;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AppController {
     public function __invoke(Request $request) {
@@ -12,7 +13,14 @@ class AppController {
         $appUrl = preg_replace('~/app/?\z~i', '', rtrim($rawUrl, '/'));
         $host = (string)$request->query('host', '');
 
-        if (!Shop::where('shop_domain', $shop)->whereNull('uninstalled_at')->exists()) {
+        try {
+            $isInstalled = Shop::where('shop_domain', $shop)->whereNull('uninstalled_at')->exists();
+        } catch (\Throwable $e) {
+            Log::error('Database error in AppController: ' . $e->getMessage());
+            abort(500, 'Database connection error. Ensure database credentials in .env are correct and migrations have been run (`php artisan migrate --force`).');
+        }
+
+        if (!$isInstalled) {
             $authParams = ['shop' => $shop];
             if ($host !== '') {
                 $authParams['host'] = $host;
