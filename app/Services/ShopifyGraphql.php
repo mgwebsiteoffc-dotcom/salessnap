@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Http\Middleware\VerifyShopifySessionToken;
 use App\Models\Shop;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -10,17 +11,18 @@ use RuntimeException;
 class ShopifyGraphql {
     public function query(Shop $shop, string $query, array $variables = []): array {
         $this->refreshIfNeeded($shop);
-        $response = Http::withHeaders([
-            'X-Shopify-Access-Token' => $shop->access_token,
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-        ])
-        ->timeout(30)
-        ->retry(2, 300, throw: false)
-        ->post("https://{$shop->shop_domain}/admin/api/" . config('shopify.api_version') . '/graphql.json', [
-            'query' => $query,
-            'variables' => $variables,
-        ]);
+        $response = $this->sendQuery($shop, $query, $variables);
+
+        if (!$response->successful() && $response->status() === 401) {
+            Log::warning("Shopify GraphQL 401 Unauthorized for {$shop->shop_domain}. Attempting automatic token renewal via session token exchange...");
+            
+            $sessionToken = request()->attributes->get('shopify_session_token') ?: request()->bearerToken();
+            if ($sessionToken && VerifyShopifySessionToken::exchangeSessionToken($shop, $sessionToken)) {
+                $shop->refresh();
+                Log::info("Retrying Shopify GraphQL query after successful token exchange for {$shop->shop_domain}");
+                $response = $this->sendQuery($shop, $query, $variables);
+            }
+        }
 
         if (!$response->successful()) {
             if ($response->status() === 401) {
@@ -36,6 +38,20 @@ class ShopifyGraphql {
         }
 
         return $body['data'] ?? [];
+    }
+
+    private function sendQuery(Shop $shop, string $query, array $variables = []) {
+        return Http::withHeaders([
+            'X-Shopify-Access-Token' => (string) $shop->access_token,
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ])
+        ->timeout(30)
+        ->retry(2, 300, throw: false)
+        ->post("https://{$shop->shop_domain}/admin/api/" . config('shopify.api_version') . '/graphql.json', [
+            'query' => $query,
+            'variables' => $variables,
+        ]);
     }
 
     public function productsByIds(Shop $shop, array $ids): array {

@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -44,51 +45,63 @@ class VerifyShopifySessionToken {
         $shopDomain = $this->extractShopDomain($dest, $iss);
         abort_unless($shopDomain !== null, 401, 'Session token shop mismatch.');
 
-        $shop = Shop::where('shop_domain', $shopDomain)->whereNull('uninstalled_at')->first();
-        abort_unless($shop, 401, 'This shop is not installed. Re-open the app from Shopify Admin.');
+        $shop = Shop::where('shop_domain', $shopDomain)->first();
+        if (!$shop) {
+            $shop = Shop::create([
+                'shop_domain' => $shopDomain,
+                'installed_at' => now(),
+            ]);
+        }
 
-        $this->exchangeIfExpiring($shop, $jwt);
+        // If access token is missing, expired, or expiring, perform immediate Token Exchange
+        if (empty($shop->access_token) || ($shop->token_expires_at && $shop->token_expires_at->lte(now()->addMinutes(2)))) {
+            $this->exchangeSessionToken($shop, $jwt);
+        }
+
         $request->attributes->set('shop', $shop);
         $request->attributes->set('shopify_claims', $claims);
+        $request->attributes->set('shopify_session_token', $jwt);
 
         return $next($request);
     }
 
-    private function exchangeIfExpiring(Shop $shop, string $idToken): void {
-        if (!$shop->token_expires_at || $shop->token_expires_at->gt(now()->addMinutes(2))) return;
+    public static function exchangeSessionToken(Shop $shop, string $idToken): bool {
         try {
-            DB::transaction(function() use ($shop, $idToken) {
-                $locked = Shop::whereKey($shop->id)->lockForUpdate()->firstOrFail();
-                if (!$locked->token_expires_at || $locked->token_expires_at->gt(now()->addMinutes(2))) {
-                    $shop->refresh();
-                    return;
-                }
-                $response = Http::asForm()->acceptJson()->timeout(15)->post("https://{$locked->shop_domain}/admin/oauth/access_token", [
-                    'client_id' => config('shopify.api_key'),
-                    'client_secret' => config('shopify.api_secret'),
-                    'grant_type' => 'urn:ietf:params:oauth:grant-type:token-exchange',
-                    'subject_token' => $idToken,
-                    'subject_token_type' => 'urn:shopify:params:oauth:token-type:id_token',
-                    'requested_token_type' => 'urn:shopify:params:oauth:token-type:offline-access-token',
-                ]);
-                if (!$response->successful() || !$response->json('access_token')) {
-                    throw new RuntimeException('Shopify token exchange failed. Re-open the app or re-authorize it.');
-                }
+            $response = Http::asForm()->acceptJson()->timeout(15)->post("https://{$shop->shop_domain}/admin/oauth/access_token", [
+                'client_id' => config('shopify.api_key'),
+                'client_secret' => config('shopify.api_secret'),
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:token-exchange',
+                'subject_token' => $idToken,
+                'subject_token_type' => 'urn:shopify:params:oauth:token-type:id_token',
+                'requested_token_type' => 'urn:shopify:params:oauth:token-type:offline-access-token',
+            ]);
+
+            if ($response->successful() && $response->json('access_token')) {
                 $data = $response->json();
                 $expiresIn = isset($data['expires_in']) ? (int)$data['expires_in'] : null;
                 $refreshTokenExpiresIn = isset($data['refresh_token_expires_in']) ? (int)$data['refresh_token_expires_in'] : null;
-                $locked->forceFill([
+
+                $shop->forceFill([
                     'access_token' => $data['access_token'],
-                    'refresh_token' => $data['refresh_token'] ?? $locked->refresh_token,
+                    'refresh_token' => $data['refresh_token'] ?? $shop->refresh_token,
                     'token_expires_at' => $expiresIn ? now()->addSeconds($expiresIn) : null,
-                    'refresh_token_expires_at' => $refreshTokenExpiresIn ? now()->addSeconds($refreshTokenExpiresIn) : $locked->refresh_token_expires_at,
+                    'refresh_token_expires_at' => $refreshTokenExpiresIn ? now()->addSeconds($refreshTokenExpiresIn) : $shop->refresh_token_expires_at,
+                    'granted_scopes' => $data['scope'] ?? $shop->granted_scopes,
+                    'uninstalled_at' => null,
                 ])->save();
-                $shop->refresh();
-            });
+
+                Log::info("Successfully exchanged session token for offline access token for shop: {$shop->shop_domain}");
+                return true;
+            } else {
+                Log::warning("Shopify token exchange rejected", [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+            }
         } catch (\Throwable $e) {
-            if ($e instanceof RuntimeException) abort(503, $e->getMessage());
-            abort(503, 'Could not renew Shopify access. Retry from Shopify Admin.');
+            Log::error('Shopify token exchange exception: ' . $e->getMessage());
         }
+        return false;
     }
 
     private function decode(string $value): string {
