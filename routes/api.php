@@ -11,6 +11,7 @@ Route::middleware(['shopify.session', 'throttle:120,1'])->group(function () {
     Route::get('/collections', [ProductController::class, 'collections']);
     Route::get('/snapshots', [CampaignController::class, 'snapshots']);
     Route::post('/campaigns', [CampaignController::class, 'store']);
+    Route::post('/campaigns/{campaign}/start-now', [CampaignController::class, 'startNow'])->whereNumber('campaign');
     Route::post('/campaigns/{campaign}/retry', [CampaignController::class, 'retry'])->whereNumber('campaign');
     Route::post('/campaigns/{campaign}/cancel', [CampaignController::class, 'cancel'])->whereNumber('campaign');
     Route::post('/campaigns/{campaign}/restore', [CampaignController::class, 'restore'])->whereNumber('campaign');

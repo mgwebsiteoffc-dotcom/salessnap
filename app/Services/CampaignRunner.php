@@ -8,6 +8,67 @@ use RuntimeException;
 
 class CampaignRunner {
     public function __construct(private ShopifyGraphql $shopify) {}
+
+    public function processDueForShop(\App\Models\Shop $shop): void {
+        // 1. Process any scheduled campaigns that are due to start (starts_at <= now())
+        $dueStarts = $shop->campaigns()
+            ->where('status', 'scheduled')
+            ->where('starts_at', '<=', now())
+            ->get();
+
+        foreach ($dueStarts as $c) {
+            try {
+                $this->start($c);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to start scheduled campaign {$c->id} for shop {$shop->shop_domain}: " . $e->getMessage());
+            }
+        }
+
+        // 2. Process any running campaigns that are due to end (ends_at <= now())
+        $dueRollbacks = $shop->campaigns()
+            ->whereIn('status', ['running', 'needs_attention'])
+            ->where('ends_at', '<=', now())
+            ->where('snapshot_complete', true)
+            ->get();
+
+        foreach ($dueRollbacks as $c) {
+            try {
+                $this->restore($c, false);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to rollback campaign {$c->id} for shop {$shop->shop_domain}: " . $e->getMessage());
+            }
+        }
+    }
+
+    public function processAllDue(): void {
+        Campaign::where('status', 'scheduled')
+            ->where('starts_at', '<=', now())
+            ->orderBy('id')
+            ->limit(100)
+            ->get()
+            ->each(function (Campaign $c) {
+                try {
+                    $this->start($c);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("Error starting campaign {$c->id}: " . $e->getMessage());
+                }
+            });
+
+        Campaign::whereIn('status', ['running', 'needs_attention'])
+            ->where('ends_at', '<=', now())
+            ->where('snapshot_complete', true)
+            ->orderBy('id')
+            ->limit(100)
+            ->get()
+            ->each(function (Campaign $c) {
+                try {
+                    $this->restore($c, false);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("Error rolling back campaign {$c->id}: " . $e->getMessage());
+                }
+            });
+    }
+
     public function start(Campaign $campaign): void {
         $campaign->refresh();
         if(!in_array($campaign->status,['scheduled','applying'],true) || $campaign->starts_at->isFuture()) return;

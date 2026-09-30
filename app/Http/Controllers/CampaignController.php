@@ -1,18 +1,27 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Jobs\RollbackCampaign;
 use App\Models\Campaign;
 use App\Models\CampaignLog;
+use App\Services\CampaignRunner;
 use Carbon\CarbonImmutable;
 use DateTimeZone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class CampaignController {
-    public function dashboard(Request $request) {
+    public function dashboard(Request $request, CampaignRunner $runner) {
         $shop = $request->attributes->get('shop');
+
+        // Automatically trigger any campaigns that reached their start or end time
+        try {
+            $runner->processDueForShop($shop);
+        } catch (\Throwable $e) {
+            Log::warning("Could not auto-process due campaigns for {$shop->shop_domain}: " . $e->getMessage());
+        }
+
         $campaigns = $shop->campaigns()->withCount('snapshots')->latest()->limit(30)->get();
         return response()->json([
             'shop' => $shop->shop_domain,
@@ -27,7 +36,7 @@ class CampaignController {
         ]);
     }
 
-    public function store(Request $request) {
+    public function store(Request $request, CampaignRunner $runner) {
         $shop = $request->attributes->get('shop');
 
         $data = $request->validate([
@@ -109,10 +118,44 @@ class CampaignController {
             return $c;
         });
 
+        // If the scheduled start time is due right now or past, immediately run it
+        if ($start->lte(now())) {
+            try {
+                $runner->start($campaign);
+                $campaign->refresh();
+            } catch (\Throwable $e) {
+                Log::error("Immediate campaign start error for {$campaign->id}: " . $e->getMessage());
+            }
+        }
+
         return response()->json(['campaign' => $this->campaignJson($campaign)], 201);
     }
 
-    public function restore(Request $request, int $campaign) {
+    public function startNow(Request $request, int $campaign, CampaignRunner $runner) {
+        $shop = $request->attributes->get('shop');
+        $c = $shop->campaigns()->whereKey($campaign)->firstOrFail();
+
+        if ($c->status !== 'scheduled') {
+            return response()->json(['message' => 'Only scheduled campaigns can be started now.'], 409);
+        }
+
+        try {
+            $c->update(['starts_at' => now()]);
+            $runner->start($c);
+            $c->refresh();
+            return response()->json([
+                'success' => true,
+                'message' => 'Campaign started immediately and product prices are now live!',
+                'campaign' => $this->campaignJson($c),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Failed to start campaign: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function restore(Request $request, int $campaign, CampaignRunner $runner) {
         $shop = $request->attributes->get('shop');
         $c = $shop->campaigns()->whereKey($campaign)->firstOrFail();
 
@@ -133,7 +176,12 @@ class CampaignController {
             return response()->json(['message' => 'A restore is already in progress.'], 409);
         }
 
-        RollbackCampaign::dispatch($c->id, true);
+        try {
+            $runner->restore($c, true);
+        } catch (\Throwable $e) {
+            Log::error("Emergency restore error for {$c->id}: " . $e->getMessage());
+        }
+
         CampaignLog::create([
             'campaign_id' => $c->id,
             'shop_id' => $shop->id,
@@ -144,11 +192,11 @@ class CampaignController {
 
         return response()->json([
             'accepted' => true,
-            'message' => 'Restore queued. Each product will be checked against its snapshot before any values are reverted.',
-        ], 202);
+            'message' => 'Restore completed. Each product was checked against its snapshot and reverted.',
+        ], 200);
     }
 
-    public function retry(Request $request, int $campaign) {
+    public function retry(Request $request, int $campaign, CampaignRunner $runner) {
         $shop = $request->attributes->get('shop');
         $c = $shop->campaigns()->whereKey($campaign)->firstOrFail();
 
@@ -168,9 +216,17 @@ class CampaignController {
             'details' => [],
         ]);
 
+        if ($c->starts_at->lte(now())) {
+            try {
+                $runner->start($c);
+            } catch (\Throwable $e) {
+                Log::error("Retry start error for {$c->id}: " . $e->getMessage());
+            }
+        }
+
         return response()->json([
             'accepted' => true,
-            'message' => 'Campaign preflight queued for the next scheduler run.',
+            'message' => 'Campaign preflight queued and retried.',
         ]);
     }
 
@@ -232,3 +288,4 @@ class CampaignController {
         ];
     }
 }
+

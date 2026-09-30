@@ -122,7 +122,12 @@
       return `<button class="polaris-btn polaris-btn-plain restore-now" data-id="${esc(c.id)}" data-name="${esc(c.name)}">Rollback now</button>`;
     }
     if (c.status === 'scheduled') {
-      return `<button class="polaris-btn polaris-btn-plain cancel-campaign" data-id="${esc(c.id)}">Cancel</button>`;
+      return `
+        <div style="display:flex;gap:6px;">
+          <button class="polaris-btn polaris-btn-plain start-campaign-now" data-id="${esc(c.id)}" style="color:#008060;font-weight:600;">Start now</button>
+          <button class="polaris-btn polaris-btn-plain cancel-campaign" data-id="${esc(c.id)}">Cancel</button>
+        </div>
+      `;
     }
     if (c.status === 'needs_attention' && !c.snapshot_complete) {
       return `<button class="polaris-btn polaris-btn-plain retry-campaign" data-id="${esc(c.id)}">Retry</button>`;
@@ -132,8 +137,20 @@
 
   function attachCampaignActions() {
     $$('.restore-now').forEach(b => b.onclick = () => openRestore(b.dataset.id, b.dataset.name));
+    $$('.start-campaign-now').forEach(b => b.onclick = () => startCampaignNow(b.dataset.id));
     $$('.cancel-campaign').forEach(b => b.onclick = () => cancelCampaign(b.dataset.id));
     $$('.retry-campaign').forEach(b => b.onclick = () => retryCampaign(b.dataset.id));
+  }
+
+  async function startCampaignNow(id) {
+    if (!window.confirm('Start this promotion now and apply discounted prices in Shopify immediately?')) return;
+    try {
+      const d = await api(`/campaigns/${id}/start-now`, { method: 'POST', body: '{}' });
+      toast(d.message || 'Campaign started and live in store!');
+      await loadDashboard();
+    } catch (e) {
+      toast(e.message);
+    }
   }
 
   async function cancelCampaign(id) {

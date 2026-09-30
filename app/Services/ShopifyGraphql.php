@@ -41,6 +41,11 @@ class ShopifyGraphql {
     }
 
     private function sendQuery(Shop $shop, string $query, array $variables = []) {
+        $payload = ['query' => $query];
+        if (!empty($variables)) {
+            $payload['variables'] = $variables;
+        }
+
         return Http::withHeaders([
             'X-Shopify-Access-Token' => (string) $shop->access_token,
             'Content-Type' => 'application/json',
@@ -48,10 +53,7 @@ class ShopifyGraphql {
         ])
         ->timeout(30)
         ->retry(2, 300, throw: false)
-        ->post("https://{$shop->shop_domain}/admin/api/" . config('shopify.api_version') . '/graphql.json', [
-            'query' => $query,
-            'variables' => $variables,
-        ]);
+        ->post("https://{$shop->shop_domain}/admin/api/" . config('shopify.api_version') . '/graphql.json', $payload);
     }
 
     public function productsByIds(Shop $shop, array $ids): array {
