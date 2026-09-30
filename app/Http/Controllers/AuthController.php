@@ -74,9 +74,36 @@ class AuthController {
         }
 
         $data = $response->json();
-        $granted = array_filter(explode(',', (string)($data['scope'] ?? '')));
-        foreach (array_filter(explode(',', (string)config('shopify.scopes'))) as $required) {
-            abort_unless(in_array(trim($required), array_map('trim', $granted), true), 403, 'Shopify did not grant a required product permission. Reinstall and approve the requested permissions.');
+        $rawGrantedScope = (string)($data['scope'] ?? '');
+        $grantedScopes = array_values(array_filter(array_map('trim', explode(',', strtolower($rawGrantedScope)))));
+
+        // In Shopify OAuth, write_{resource} automatically includes read_{resource}
+        $effectiveScopes = $grantedScopes;
+        foreach ($grantedScopes as $g) {
+            if (str_starts_with($g, 'write_')) {
+                $effectiveScopes[] = 'read_' . substr($g, 6);
+            }
+        }
+        $effectiveScopes = array_unique($effectiveScopes);
+
+        $configuredScopes = array_values(array_filter(array_map('trim', explode(',', strtolower((string)config('shopify.scopes', 'read_products,write_products'))))));
+
+        $missingScopes = [];
+        foreach ($configuredScopes as $req) {
+            if ($req !== '' && !in_array($req, $effectiveScopes, true)) {
+                $missingScopes[] = $req;
+            }
+        }
+
+        if (!empty($missingScopes)) {
+            Log::warning('Shopify OAuth scopes mismatch', [
+                'shop' => $shop,
+                'requested' => $configuredScopes,
+                'granted' => $grantedScopes,
+                'effective' => $effectiveScopes,
+                'missing' => $missingScopes,
+            ]);
+            abort(403, 'Shopify did not grant required permission(s): ' . implode(', ', $missingScopes) . '. Granted scopes: ' . ($rawGrantedScope ?: 'none') . '. Please reinstall the app and approve the permissions.');
         }
 
         $expiresIn = isset($data['expires_in']) ? (int)$data['expires_in'] : null;
@@ -90,7 +117,7 @@ class AuthController {
                     'refresh_token' => $data['refresh_token'] ?? null,
                     'token_expires_at' => $expiresIn ? now()->addSeconds($expiresIn) : null,
                     'refresh_token_expires_at' => $refreshTokenExpiresIn ? now()->addSeconds($refreshTokenExpiresIn) : null,
-                    'granted_scopes' => $data['scope'] ?? config('shopify.scopes'),
+                    'granted_scopes' => $rawGrantedScope ?: (string)config('shopify.scopes'),
                     'installed_at' => now(),
                     'uninstalled_at' => null,
                 ]
