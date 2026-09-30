@@ -1,0 +1,54 @@
+services:
+  migrate:
+    build: .
+    env_file: .env
+    environment:
+      DB_HOST: mysql
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: php artisan migrate --force
+  web:
+    build: .
+    env_file: .env
+    environment:
+      DB_HOST: mysql
+    ports: ["8080:80"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    build: .
+    env_file: .env
+    environment:
+      DB_HOST: mysql
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: php artisan queue:work database --sleep=2 --tries=3 --timeout=1800
+    restart: unless-stopped
+  scheduler:
+    build: .
+    env_file: .env
+    environment:
+      DB_HOST: mysql
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: php artisan schedule:work
+    restart: unless-stopped
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-promotion_manager}
+      MYSQL_USER: ${DB_USERNAME:-pm_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-change-me}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-local-root-change-me}
+    volumes: ["mysql-data:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-local-root-change-me}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  mysql-data:

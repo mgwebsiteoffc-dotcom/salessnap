@@ -1,0 +1,1 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Authorize SaleSnap</title></head><body><p>Authorizing SaleSnap with Shopify…</p><script>window.top.location.href = @json($authUrl);</script><noscript><a href="{{ $authUrl }}">Continue authorization</a></noscript></body></html>

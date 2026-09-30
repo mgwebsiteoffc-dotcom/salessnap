@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void { Schema::create('campaign_logs', function(Blueprint $t){$t->id();$t->foreignId('campaign_id')->nullable()->constrained()->nullOnDelete();$t->foreignId('shop_id')->nullable()->constrained()->nullOnDelete();$t->string('event',64);$t->string('severity',16)->default('info');$t->json('details')->nullable();$t->timestamps();$t->index(['shop_id','created_at']);}); } public function down(): void {Schema::dropIfExists('campaign_logs');} };

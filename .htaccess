@@ -1,0 +1,7 @@
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteRule ^(.*)$ public/$1 [L]
+Header always unset X-Frame-Options
+Header always set Content-Security-Policy "frame-ancestors https://*.myshopify.com https://admin.shopify.com;"
+</IfModule>

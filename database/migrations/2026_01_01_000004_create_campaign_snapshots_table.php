@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void { Schema::create('campaign_snapshots', function(Blueprint $t){$t->id();$t->foreignId('campaign_id')->constrained()->cascadeOnDelete();$t->string('product_gid',191);$t->json('original_data');$t->string('original_hash',64);$t->json('applied_data')->nullable();$t->string('status',24)->default('snapshotted')->index();$t->json('conflicts')->nullable();$t->text('last_error')->nullable();$t->timestamp('restored_at')->nullable();$t->timestamps();$t->unique(['campaign_id','product_gid']);}); } public function down(): void {Schema::dropIfExists('campaign_snapshots');} };

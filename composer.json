@@ -1,0 +1,20 @@
+{
+  "name": "northstar/promotion-manager",
+  "type": "project",
+  "description": "Embedded Shopify promotion manager with reversible product campaigns.",
+  "require": {
+    "php": "^8.2",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "ext-openssl": "*",
+    "ext-pdo": "*",
+    "laravel/framework": "^12.0"
+  },
+  "require-dev": {"phpunit/phpunit": "^11.0"},
+  "autoload": {"psr-4": {"App\\": "app/"}},
+  "autoload-dev": {"psr-4": {"Tests\\": "tests/"}},
+  "scripts": {"post-autoload-dump": ["Illuminate\\Foundation\\ComposerScripts::postAutoloadDump", "@php artisan package:discover --ansi"], "test": "@php artisan test"},
+  "config": {"optimize-autoloader": true, "preferred-install": "dist", "sort-packages": true, "allow-plugins": {"php-http/discovery": true}},
+  "minimum-stability": "stable", "prefer-stable": true
+}

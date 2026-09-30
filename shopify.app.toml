@@ -1,0 +1,22 @@
+# Configure the same Client ID and App URL in Shopify Dev Dashboard.
+client_id = "e8b58f6efefd87a7e9b9170910c889c3"
+name = "SaleSnap"
+application_url = "https://salesnap.rankboosterinfotech.in/app"
+embedded = true
+
+[access_scopes]
+scopes = "read_products,write_products"
+
+[auth]
+redirect_urls = [ "https://salesnap.rankboosterinfotech.in/auth/callback" ]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+topics = [ "app/uninstalled" ]
+uri = "/webhooks/shopify"
+
+[[webhooks.subscriptions]]
+compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+uri = "/webhooks/shopify"
