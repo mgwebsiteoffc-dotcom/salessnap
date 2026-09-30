@@ -13,12 +13,17 @@ class ThemeController {
         try {
             $themes = $graphql->getThemes($shop);
         } catch (\Throwable $e) {
+            $isScopeError = str_contains($e->getMessage(), 'read_themes') || str_contains($e->getMessage(), '403');
             Log::warning("Could not fetch themes for {$shop->shop_domain}: " . $e->getMessage());
             return response()->json([
                 'themes' => [],
                 'published_theme_id' => $shop->published_theme_id,
                 'active_promo_theme_id' => $shop->active_promo_theme_id,
-                'error' => 'Unable to read themes. Ensure the app has read_themes permissions.',
+                'scope_required' => $isScopeError,
+                'reauth_url' => '/auth?shop=' . urlencode($shop->shop_domain),
+                'error' => $isScopeError
+                    ? 'Theme management requires read_themes and write_themes permissions. Please re-authorize the app to grant theme permissions.'
+                    : 'Unable to read themes: ' . $e->getMessage(),
             ]);
         }
 

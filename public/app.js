@@ -58,6 +58,17 @@
     if (d && typeof d.showModal === 'function') d.showModal();
   };
 
+  window.reauthorizeApp = () => {
+    const authUrl = window.location.origin + '/auth?shop=' + encodeURIComponent(shopDomain);
+    if (window.shopify && typeof window.shopify.open === 'function') {
+      window.shopify.open(authUrl, '_top');
+    } else if (typeof open === 'function' && window !== window.top) {
+      try { open(authUrl, '_top'); } catch (e) { try { window.top.location.href = authUrl; } catch (err) {} }
+    } else {
+      try { window.top.location.href = authUrl; } catch (e) { window.location.href = authUrl; }
+    }
+  };
+
   function esc(v) {
     return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
@@ -1477,7 +1488,19 @@
       const data = await api('/themes');
       storeThemesList = data.themes || [];
 
-      if (!storeThemesList.length) {
+      if (data.scope_required) {
+        select.innerHTML = '<option value="">Theme permissions required (read_themes)</option>';
+        const errBox = $('#theme-publish-error');
+        errBox.innerHTML = `
+          <div class="polaris-banner-icon">!</div>
+          <div class="polaris-banner-content">
+            <strong>Theme Permissions Required</strong>
+            <p>To duplicate themes and publish countdown timers, please update app permissions with Shopify.</p>
+            <button type="button" class="polaris-btn polaris-btn-primary" style="margin-top:8px;" onclick="window.reauthorizeApp()">⚡ Grant Theme Permissions</button>
+          </div>
+        `;
+        errBox.classList.remove('hidden');
+      } else if (!storeThemesList.length) {
         select.innerHTML = '<option value="">No themes found in store.</option>';
       } else {
         select.innerHTML = storeThemesList.map(t => `
@@ -1866,6 +1889,21 @@
       const data = await api('/themes');
       const themes = data.themes || [];
       const canRevert = data.can_revert;
+
+      if (data.scope_required || (!themes.length && data.error)) {
+        container.innerHTML = `
+          <div class="polaris-banner polaris-banner-warning" style="margin-bottom:20px;">
+            <div class="polaris-banner-icon">!</div>
+            <div class="polaris-banner-content">
+              <strong>Theme Permissions Required (read_themes, write_themes)</strong>
+              <p style="margin:4px 0 10px;">To duplicate themes with synchronized live countdown timers and publish them during promotions, SaleSnap needs theme permissions approved in Shopify.</p>
+              <button type="button" class="polaris-btn polaris-btn-primary" onclick="window.reauthorizeApp()">⚡ Grant Theme Permissions</button>
+            </div>
+          </div>
+          <div class="polaris-empty-state">Click above to approve theme permissions in Shopify Admin.</div>
+        `;
+        return;
+      }
 
       container.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
