@@ -205,7 +205,8 @@ GQL;
 
     public function updateVariantPrices(Shop $shop, string $productId, array $variants): void {
         if (!$variants) return;
-        $query = <<<'GQL'
+
+        $bulkQuery = <<<'GQL'
 mutation VariantPrices($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
   productVariantsBulkUpdate(productId: $productId, variants: $variants) {
     product { id }
@@ -213,8 +214,72 @@ mutation VariantPrices($productId: ID!, $variants: [ProductVariantsBulkInput!]!)
   }
 }
 GQL;
-        $res = $this->query($shop, $query, ['productId' => $productId, 'variants' => $variants])['productVariantsBulkUpdate'] ?? [];
-        $this->assertUserErrors($res['userErrors'] ?? []);
+
+        $formatted = array_map(function ($v) {
+            $item = [
+                'id' => (string)$v['id'],
+                'price' => (string)$v['price'],
+            ];
+            if (array_key_exists('compareAtPrice', $v)) {
+                $item['compareAtPrice'] = $v['compareAtPrice'] !== null ? (string)$v['compareAtPrice'] : null;
+            }
+            return $item;
+        }, $variants);
+
+        $hasError = false;
+        try {
+            $res = $this->query($shop, $bulkQuery, ['productId' => $productId, 'variants' => $formatted])['productVariantsBulkUpdate'] ?? [];
+            if (!empty($res['userErrors'])) {
+                Log::warning("productVariantsBulkUpdate userErrors for {$productId}: " . json_encode($res['userErrors']));
+                $hasError = true;
+            }
+        } catch (\Throwable $e) {
+            Log::warning("productVariantsBulkUpdate failed for {$productId}: " . $e->getMessage());
+            $hasError = true;
+        }
+
+        if ($hasError) {
+            $singleQuery = <<<'GQL'
+mutation ProductVariantUpdate($input: ProductVariantInput!) {
+  productVariantUpdate(input: $input) {
+    productVariant { id price compareAtPrice }
+    userErrors { field message }
+  }
+}
+GQL;
+            foreach ($formatted as $item) {
+                try {
+                    $res = $this->query($shop, $singleQuery, ['input' => $item])['productVariantUpdate'] ?? [];
+                    if (!empty($res['userErrors'])) {
+                        $this->updateVariantViaRest($shop, $item);
+                    }
+                } catch (\Throwable $e) {
+                    $this->updateVariantViaRest($shop, $item);
+                }
+            }
+        }
+    }
+
+    private function updateVariantViaRest(Shop $shop, array $item): void {
+        preg_match('/(\d+)$/', $item['id'], $m);
+        $variantIdNum = $m[1] ?? '';
+        if (!$variantIdNum) return;
+
+        $payload = [
+            'variant' => [
+                'id' => (int)$variantIdNum,
+                'price' => (string)$item['price'],
+            ],
+        ];
+        if (array_key_exists('compareAtPrice', $item)) {
+            $payload['variant']['compare_at_price'] = $item['compareAtPrice'] !== null ? (string)$item['compareAtPrice'] : null;
+        }
+
+        try {
+            $this->restPut($shop, "variants/{$variantIdNum}.json", $payload);
+        } catch (\Throwable $e) {
+            Log::error("REST fallback variant update failed for variant {$variantIdNum}: " . $e->getMessage());
+        }
     }
 
     public function createAppSubscription(Shop $shop, string $planKey = 'pro', string $returnUrl = ''): array {

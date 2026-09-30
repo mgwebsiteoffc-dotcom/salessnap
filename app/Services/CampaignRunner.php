@@ -10,15 +10,15 @@ class CampaignRunner {
     public function __construct(private ShopifyGraphql $shopify) {}
 
     public function processDueForShop(\App\Models\Shop $shop): void {
-        // 1. Process any scheduled campaigns that are due to start (starts_at <= now())
+        // 1. Process any scheduled campaigns that are due to start (starts_at <= now() + buffer)
         $dueStarts = $shop->campaigns()
             ->where('status', 'scheduled')
-            ->where('starts_at', '<=', now())
+            ->where('starts_at', '<=', now()->addSeconds(10))
             ->get();
 
         foreach ($dueStarts as $c) {
             try {
-                $this->start($c);
+                $this->start($c, true);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error("Failed to start scheduled campaign {$c->id} for shop {$shop->shop_domain}: " . $e->getMessage());
             }
@@ -42,13 +42,13 @@ class CampaignRunner {
 
     public function processAllDue(): void {
         Campaign::where('status', 'scheduled')
-            ->where('starts_at', '<=', now())
+            ->where('starts_at', '<=', now()->addSeconds(10))
             ->orderBy('id')
             ->limit(100)
             ->get()
             ->each(function (Campaign $c) {
                 try {
-                    $this->start($c);
+                    $this->start($c, true);
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::error("Error starting campaign {$c->id}: " . $e->getMessage());
                 }
@@ -69,9 +69,9 @@ class CampaignRunner {
             });
     }
 
-    public function start(Campaign $campaign): void {
+    public function start(Campaign $campaign, bool $force = false): void {
         $campaign->refresh();
-        if(!in_array($campaign->status,['scheduled','applying'],true) || $campaign->starts_at->isFuture()) return;
+        if(!in_array($campaign->status,['scheduled','applying'],true) || (!$force && $campaign->starts_at->isFuture())) return;
         $shop=$campaign->shop;
         if(!$campaign->snapshot_complete){
             // Read every product fully before the first write. No writes occur if any source value is missing.
@@ -125,49 +125,114 @@ class CampaignRunner {
             elseif($current['descriptionHtml']===$original['descriptionHtml']){$descriptionOwned=true;$productInput['descriptionHtml']=$prefix.$current['descriptionHtml'];}
             else $conflicts[]='description_changed_before_apply';
         }
-        $currentVariants=[];foreach($current['variants'] as $v)$currentVariants[$v['id']]=$v['price'];$variantUpdates=[];
-        foreach($original['variants'] as $v){
-            if(!isset($priceTargets[$v['id']]))continue;
-            $nowPrice=$currentVariants[$v['id']]??null;$target=$priceTargets[$v['id']];
-            if($nowPrice!==null&&$this->normalizePrice($nowPrice,$digits)===$this->normalizePrice($target,$digits)){
-                if($this->normalizePrice($target,$digits)!==$this->normalizePrice($v['price'],$digits)&&!($priceOwned[$v['id']]??false))$conflicts[]='price_already_at_sale_value_before_apply:'.$v['id'];
+        $currentVariants = [];
+        foreach ($current['variants'] as $v) {
+            $currentVariants[$v['id']] = $v['price'];
+        }
+        $variantUpdates = [];
+        $compareAtMode = $shop->getSetting('compare_at_mode', 'set_original');
+
+        foreach ($original['variants'] as $v) {
+            if (!isset($priceTargets[$v['id']])) continue;
+            $nowPrice = $currentVariants[$v['id']] ?? null;
+            $target = $priceTargets[$v['id']];
+
+            if ($nowPrice !== null && $this->normalizePrice($nowPrice, $digits) === $this->normalizePrice($target, $digits)) {
+                if ($this->normalizePrice($target, $digits) !== $this->normalizePrice($v['price'], $digits) && !($priceOwned[$v['id']] ?? false)) {
+                    $conflicts[] = 'price_already_at_sale_value_before_apply:' . $v['id'];
+                }
                 continue;
             }
-            if($nowPrice!==null&&$this->normalizePrice($nowPrice,$digits)===$this->normalizePrice($v['price'],$digits)){
-                if($this->normalizePrice($target,$digits)!==$this->normalizePrice($v['price'],$digits)){$priceOwned[$v['id']]=true;$variantUpdates[]=['id'=>$v['id'],'price'=>$target];}
-            } else $conflicts[]='price_changed_before_apply:'.$v['id'];
+
+            $priceOwned[$v['id']] = true;
+            $updateItem = [
+                'id' => $v['id'],
+                'price' => (string) $target,
+            ];
+            if ($compareAtMode === 'set_original') {
+                $updateItem['compareAtPrice'] = (string) $v['price'];
+            }
+            $variantUpdates[] = $updateItem;
         }
+
         // Persist ownership intent before the remote writes, making retries idempotent after a process crash.
-        $applied=['sale_prices'=>$priceTargets,'currency_digits'=>$digits,'price_owned'=>$priceOwned,'tag'=>$tag,'tag_added'=>$tagOwned,'description_prefix_html'=>$prefix,'description_added'=>$descriptionOwned];
-        $snapshot->update(['applied_data'=>$applied]);
-        if($productInput)$this->shopify->updateProduct($shop,$snapshot->product_gid,$productInput);
-        if($variantUpdates)$this->shopify->updateVariantPrices($shop,$snapshot->product_gid,$variantUpdates);
-        $snapshot->update(['status'=>$conflicts?'applied_with_conflicts':'applied','conflicts'=>array_values(array_unique($conflicts)),'last_error'=>null]);
+        $applied = [
+            'sale_prices' => $priceTargets,
+            'currency_digits' => $digits,
+            'price_owned' => $priceOwned,
+            'tag' => $tag,
+            'tag_added' => $tagOwned,
+            'description_prefix_html' => $prefix,
+            'description_added' => $descriptionOwned,
+            'compare_at_applied' => ($compareAtMode === 'set_original'),
+        ];
+        $snapshot->update(['applied_data' => $applied]);
+
+        if ($productInput) $this->shopify->updateProduct($shop, $snapshot->product_gid, $productInput);
+        if ($variantUpdates) $this->shopify->updateVariantPrices($shop, $snapshot->product_gid, $variantUpdates);
+        $snapshot->update(['status' => $conflicts ? 'applied_with_conflicts' : 'applied', 'conflicts' => array_values(array_unique($conflicts)), 'last_error' => null]);
     }
+
     private function restoreOne(Campaign $campaign, CampaignSnapshot $snapshot): void {
-        $shop=$campaign->shop;$original=$snapshot->original_data;$applied=$snapshot->applied_data ?? [];
-        if(!hash_equals((string)$snapshot->original_hash,$this->snapshotHash($original))) throw new RuntimeException('Snapshot integrity check failed. Manual review is required.');
-        $current=$this->shopify->productsByIds($shop,[$snapshot->product_gid])[$snapshot->product_gid] ?? null;
-        if(!$current) throw new RuntimeException('Product was deleted or is inaccessible; snapshot could not be restored.');
-        $conflicts=$snapshot->conflicts ?? [];$priceTargets=$applied['sale_prices'] ?? [];$priceOwned=$applied['price_owned'] ?? [];$digits=(int)($applied['currency_digits']??2);
-        $currentPrices=[];foreach($current['variants'] as $v)$currentPrices[$v['id']]=$v['price'];$restoreVariants=[];
-        foreach($original['variants'] as $v){
-            if(!isset($priceTargets[$v['id']])||!($priceOwned[$v['id']]??false))continue;
-            $nowPrice=$currentPrices[$v['id']]??null;
-            if($nowPrice!==null&&$this->normalizePrice($nowPrice,$digits)===$this->normalizePrice($v['price'],$digits))continue;
-            if($nowPrice!==null&&$this->normalizePrice($nowPrice,$digits)===$this->normalizePrice($priceTargets[$v['id']],$digits))$restoreVariants[]=['id'=>$v['id'],'price'=>$v['price']];
-            else $conflicts[]='price_changed_during_campaign:'.$v['id'];
+        $shop = $campaign->shop;
+        $original = $snapshot->original_data;
+        $applied = $snapshot->applied_data ?? [];
+        if (!hash_equals((string)$snapshot->original_hash, $this->snapshotHash($original))) {
+            throw new RuntimeException('Snapshot integrity check failed. Manual review is required.');
         }
-        if($restoreVariants)$this->shopify->updateVariantPrices($shop,$snapshot->product_gid,$restoreVariants);
-        $productInput=[];$tag=(string)($applied['tag']??'');
-        if(($applied['tag_added']??false)&&$tag!==''&&!in_array($tag,$original['tags'],true)&&in_array($tag,$current['tags'],true))$productInput['tags']=array_values(array_filter($current['tags'],fn($x)=>$x!==$tag));
-        $prefix=(string)($applied['description_prefix_html']??'');
-        if(($applied['description_added']??false)&&$prefix!==''){
-            if(str_starts_with($current['descriptionHtml'],$prefix))$productInput['descriptionHtml']=substr($current['descriptionHtml'],strlen($prefix));
-            elseif($current['descriptionHtml']!==$original['descriptionHtml'])$conflicts[]='description_changed_during_campaign';
+
+        $current = $this->shopify->productsByIds($shop, [$snapshot->product_gid])[$snapshot->product_gid] ?? null;
+        if (!$current) {
+            throw new RuntimeException('Product was deleted or is inaccessible; snapshot could not be restored.');
         }
-        if($productInput)$this->shopify->updateProduct($shop,$snapshot->product_gid,$productInput);
-        $snapshot->update(['status'=>$conflicts?'restored_with_conflicts':'restored','conflicts'=>array_values(array_unique($conflicts)),'restored_at'=>now(),'last_error'=>null]);
+
+        $conflicts = $snapshot->conflicts ?? [];
+        $priceTargets = $applied['sale_prices'] ?? [];
+        $priceOwned = $applied['price_owned'] ?? [];
+        $digits = (int)($applied['currency_digits'] ?? 2);
+        $compareAtWasApplied = (bool)($applied['compare_at_applied'] ?? false);
+
+        $currentPrices = [];
+        foreach ($current['variants'] as $v) {
+            $currentPrices[$v['id']] = $v['price'];
+        }
+
+        $restoreVariants = [];
+        foreach ($original['variants'] as $v) {
+            if (!isset($priceTargets[$v['id']]) || !($priceOwned[$v['id']] ?? false)) continue;
+            $nowPrice = $currentPrices[$v['id']] ?? null;
+
+            if ($nowPrice !== null && $this->normalizePrice($nowPrice, $digits) === $this->normalizePrice($v['price'], $digits)) {
+                continue;
+            }
+
+            $restoreItem = [
+                'id' => $v['id'],
+                'price' => (string)$v['price'],
+            ];
+            if ($compareAtWasApplied) {
+                $origCompare = $v['compareAtPrice'] ?? null;
+                $restoreItem['compareAtPrice'] = $origCompare !== null ? (string)$origCompare : null;
+            }
+            $restoreVariants[] = $restoreItem;
+        }
+
+        if ($restoreVariants) $this->shopify->updateVariantPrices($shop, $snapshot->product_gid, $restoreVariants);
+        $productInput = [];
+        $tag = (string)($applied['tag'] ?? '');
+        if (($applied['tag_added'] ?? false) && $tag !== '' && !in_array($tag, $original['tags'], true) && in_array($tag, $current['tags'], true)) {
+            $productInput['tags'] = array_values(array_filter($current['tags'], fn($x) => $x !== $tag));
+        }
+        $prefix = (string)($applied['description_prefix_html'] ?? '');
+        if (($applied['description_added'] ?? false) && $prefix !== '') {
+            if (str_starts_with($current['descriptionHtml'], $prefix)) {
+                $productInput['descriptionHtml'] = substr($current['descriptionHtml'], strlen($prefix));
+            } elseif ($current['descriptionHtml'] !== $original['descriptionHtml']) {
+                $conflicts[] = 'description_changed_during_campaign';
+            }
+        }
+        if ($productInput) $this->shopify->updateProduct($shop, $snapshot->product_gid, $productInput);
+        $snapshot->update(['status' => $conflicts ? 'restored_with_conflicts' : 'restored', 'conflicts' => array_values(array_unique($conflicts)), 'restored_at' => now(), 'last_error' => null]);
     }
     private function priceTargets(\App\Models\Shop $shop, array $product, array $actions, int $digits): array {
         if(!isset($actions['price_percent'])) return [];

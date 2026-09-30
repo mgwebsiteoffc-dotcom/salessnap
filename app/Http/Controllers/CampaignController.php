@@ -118,10 +118,10 @@ class CampaignController {
             return $c;
         });
 
-        // If the scheduled start time is due right now or past, immediately run it
-        if ($start->lte(now())) {
+        // If the scheduled start time is due right now or within 2 minutes, immediately run it
+        if ($start->lte(now()->addMinutes(2))) {
             try {
-                $runner->start($campaign);
+                $runner->start($campaign, true);
                 $campaign->refresh();
             } catch (\Throwable $e) {
                 Log::error("Immediate campaign start error for {$campaign->id}: " . $e->getMessage());
@@ -135,17 +135,17 @@ class CampaignController {
         $shop = $request->attributes->get('shop');
         $c = $shop->campaigns()->whereKey($campaign)->firstOrFail();
 
-        if ($c->status !== 'scheduled') {
+        if ($c->status !== 'scheduled' && !($c->status === 'needs_attention' && !$c->snapshot_complete)) {
             return response()->json(['message' => 'Only scheduled campaigns can be started now.'], 409);
         }
 
         try {
-            $c->update(['starts_at' => now()]);
-            $runner->start($c);
+            $c->update(['starts_at' => now()->subSeconds(2)]);
+            $runner->start($c, true);
             $c->refresh();
             return response()->json([
                 'success' => true,
-                'message' => 'Campaign started immediately and product prices are now live!',
+                'message' => 'Campaign started immediately and discounted prices are now live in your store!',
                 'campaign' => $this->campaignJson($c),
             ]);
         } catch (\Throwable $e) {
