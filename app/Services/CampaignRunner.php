@@ -113,7 +113,7 @@ class CampaignRunner {
         $tag=(string)($actions['add_tag'] ?? '');$prefix=$this->prefixHtml((string)($actions['description_prefix'] ?? ''));
         $applied=$snapshot->applied_data ?? [];
         $digits=isset($applied['currency_digits'])?(int)$applied['currency_digits']:$this->currencyDigits($shop);
-        $priceTargets=$applied['sale_prices'] ?? $this->priceTargets($original,$actions,$digits);
+        $priceTargets=$applied['sale_prices'] ?? $this->priceTargets($shop,$original,$actions,$digits);
         $priceOwned=$applied['price_owned'] ?? [];$tagOwned=(bool)($applied['tag_added'] ?? false);$descriptionOwned=(bool)($applied['description_added'] ?? false);
         $productInput=[];$conflicts=$snapshot->conflicts ?? [];
         if($tag!==''&&!in_array($tag,$original['tags'],true)){
@@ -169,9 +169,29 @@ class CampaignRunner {
         if($productInput)$this->shopify->updateProduct($shop,$snapshot->product_gid,$productInput);
         $snapshot->update(['status'=>$conflicts?'restored_with_conflicts':'restored','conflicts'=>array_values(array_unique($conflicts)),'restored_at'=>now(),'last_error'=>null]);
     }
-    private function priceTargets(array $product,array $actions,int $digits): array {
-        if(!isset($actions['price_percent']))return [];$pct=(float)$actions['price_percent'];
-        $targets=[];foreach($product['variants'] as $v){$amount=(float)$v['price'];$sale=round($amount*(100-$pct)/100,$digits,PHP_ROUND_HALF_UP);$targets[$v['id']]=number_format($sale,$digits,'.','');}return $targets;
+    private function priceTargets(\App\Models\Shop $shop, array $product, array $actions, int $digits): array {
+        if(!isset($actions['price_percent'])) return [];
+        $pct = (float)$actions['price_percent'];
+        $rounding = $shop->getSetting('price_rounding', 'none');
+        $targets = [];
+
+        foreach($product['variants'] as $v) {
+            $amount = (float)$v['price'];
+            $sale = round($amount * (100 - $pct) / 100, $digits, PHP_ROUND_HALF_UP);
+
+            if ($digits === 2) {
+                if ($rounding === '99') {
+                    $sale = max(0.99, floor($sale) + 0.99);
+                } elseif ($rounding === '95') {
+                    $sale = max(0.95, floor($sale) + 0.95);
+                } elseif ($rounding === 'round_dollar') {
+                    $sale = max(1.00, round($sale));
+                }
+            }
+
+            $targets[$v['id']] = number_format($sale, $digits, '.', '');
+        }
+        return $targets;
     }
     private function currencyDigits($shop): int { try { $code=$this->shopify->query($shop,'query { shop { currencyCode } }')['shop']['currencyCode'] ?? 'USD'; } catch(\Throwable $e){$code='USD';} if(in_array($code,['BHD','IQD','JOD','KWD','LYD','OMR','TND'],true))return 3;if(in_array($code,['BIF','CLP','DJF','GNF','ISK','JPY','KRW','PYG','RWF','UGX','VND','VUV','XAF','XOF'],true))return 0;return 2; }
     private function normalizePrice(string $value,int $digits): string { return number_format((float)$value,$digits,'.',''); }

@@ -254,6 +254,128 @@ class CampaignController {
         return response()->json(['cancelled' => true]);
     }
 
+    public function show(Request $request, int $campaign, ShopifyGraphql $graphql) {
+        $shop = $request->attributes->get('shop');
+        $c = $shop->campaigns()->with(['snapshots'])->whereKey($campaign)->firstOrFail();
+
+        $productIds = $c->product_ids ?? [];
+        $snapshotsByGid = $c->snapshots->keyBy('product_gid');
+
+        // Fetch live or snapshotted product details
+        $productsData = [];
+        try {
+            if (!empty($productIds)) {
+                $productsData = $graphql->productsByIds($shop, $productIds);
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Could not fetch live products for campaign {$c->id}: " . $e->getMessage());
+        }
+
+        $pricePct = (float)($c->actions['price_percent'] ?? 0);
+        $tag = (string)($c->actions['add_tag'] ?? '');
+        $prefix = (string)($c->actions['description_prefix'] ?? '');
+
+        $resolvedProducts = [];
+        foreach ($productIds as $gid) {
+            $snapshot = $snapshotsByGid->get($gid);
+            $live = $productsData[$gid] ?? null;
+            $orig = $snapshot?->original_data ?? $live;
+
+            if (!$orig && !$live) {
+                $resolvedProducts[] = [
+                    'id' => $gid,
+                    'title' => 'Product ' . str_replace('gid://shopify/Product/', '#', $gid),
+                    'status' => 'UNAVAILABLE',
+                    'image' => null,
+                    'original_price' => '0.00',
+                    'sale_price' => '0.00',
+                    'variants' => [],
+                    'snapshot_status' => $snapshot?->status ?? 'pending',
+                ];
+                continue;
+            }
+
+            $title = $live['title'] ?? $orig['title'] ?? 'Product';
+            $image = $live['image'] ?? $orig['image'] ?? null;
+            $status = $live['status'] ?? $orig['status'] ?? 'ACTIVE';
+            $variants = $orig['variants'] ?? ($live['variants'] ?? []);
+
+            $variantDetails = [];
+            $firstOrigPrice = '0.00';
+            $firstSalePrice = '0.00';
+
+            foreach ($variants as $idx => $v) {
+                $vOrig = (float)($v['price'] ?? 0);
+                $vSale = $pricePct > 0 ? max(0.01, round($vOrig * (100 - $pricePct) / 100, 2)) : $vOrig;
+                
+                // If snapshot already has applied_data, use that exact applied price
+                if ($snapshot && isset($snapshot->applied_data['sale_prices'][$v['id']])) {
+                    $vSale = (float)$snapshot->applied_data['sale_prices'][$v['id']];
+                }
+
+                if ($idx === 0) {
+                    $firstOrigPrice = number_format($vOrig, 2, '.', '');
+                    $firstSalePrice = number_format($vSale, 2, '.', '');
+                }
+
+                $variantDetails[] = [
+                    'id' => $v['id'],
+                    'title' => $v['title'] ?? 'Default Title',
+                    'sku' => $v['sku'] ?? '',
+                    'original_price' => number_format($vOrig, 2, '.', ''),
+                    'sale_price' => number_format($vSale, 2, '.', ''),
+                    'discount_amount' => number_format(max(0, $vOrig - $vSale), 2, '.', ''),
+                ];
+            }
+
+            preg_match('/(\d+)$/', $gid, $m);
+            $idNumber = $m[1] ?? '';
+            $shopSlug = explode('.', $shop->shop_domain)[0];
+
+            $resolvedProducts[] = [
+                'id' => $gid,
+                'title' => $title,
+                'image' => $image,
+                'status' => $status,
+                'admin_url' => "https://admin.shopify.com/store/{$shopSlug}/products/{$idNumber}",
+                'original_price' => $firstOrigPrice,
+                'sale_price' => $firstSalePrice,
+                'discount_percent' => $pricePct,
+                'variants_count' => count($variantDetails),
+                'variants' => $variantDetails,
+                'snapshot_status' => $snapshot?->status ?? ($c->snapshot_complete ? 'snapshotted' : 'pending'),
+                'conflicts' => $snapshot?->conflicts ?? [],
+                'last_error' => $snapshot?->last_error,
+                'restored_at' => $snapshot?->restored_at?->toIso8601String(),
+            ];
+        }
+
+        $logs = CampaignLog::where('campaign_id', $c->id)->latest()->limit(20)->get();
+
+        return response()->json([
+            'campaign' => array_merge($this->campaignJson($c), [
+                'started_at' => $c->started_at?->toIso8601String(),
+                'completed_at' => $c->completed_at?->toIso8601String(),
+                'restore_requested_at' => $c->restore_requested_at?->toIso8601String(),
+                'can_start_now' => in_array($c->status, ['scheduled', 'needs_attention']) && !$c->snapshot_complete,
+                'can_restore' => in_array($c->status, ['running', 'needs_attention', 'applying']) && $c->snapshot_complete,
+                'can_cancel' => $c->status === 'scheduled' && !$c->snapshot_complete,
+                'can_retry' => $c->status === 'needs_attention' && !$c->snapshot_complete && !$c->ends_at->isPast(),
+            ]),
+            'products' => $resolvedProducts,
+            'snapshots' => $c->snapshots->map(fn($s) => [
+                'id' => $s->id,
+                'product_gid' => $s->product_gid,
+                'status' => $s->status,
+                'conflicts' => $s->conflicts,
+                'last_error' => $s->last_error,
+                'restored_at' => $s->restored_at?->toIso8601String(),
+                'created_at' => $s->created_at?->toIso8601String(),
+            ]),
+            'logs' => $logs,
+        ]);
+    }
+
     public function snapshots(Request $request) {
         $shop = $request->attributes->get('shop');
         return response()->json([

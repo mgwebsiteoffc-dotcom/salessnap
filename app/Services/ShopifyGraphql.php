@@ -65,8 +65,12 @@ class ShopifyGraphql {
 query CampaignProduct($id: ID!) {
   node(id: $id) {
     ... on Product {
-      id title descriptionHtml tags status
-      variants(first: 250) { nodes { id price } pageInfo { hasNextPage } }
+      id title handle descriptionHtml tags status
+      featuredImage { url altText }
+      variants(first: 250) {
+        nodes { id title price compareAtPrice sku }
+        pageInfo { hasNextPage }
+      }
     }
   }
 }
@@ -81,6 +85,8 @@ GQL;
             $items[$node['id']] = [
                 'id' => $node['id'],
                 'title' => $node['title'] ?? '',
+                'handle' => $node['handle'] ?? '',
+                'image' => $node['featuredImage']['url'] ?? null,
                 'descriptionHtml' => $node['descriptionHtml'] ?? '',
                 'tags' => $node['tags'] ?? [],
                 'status' => $node['status'] ?? 'ACTIVE',
@@ -469,6 +475,303 @@ GQL;
         if ($errors) {
             throw new RuntimeException('Shopify rejected request: ' . mb_substr(json_encode($errors), 0, 1200));
         }
+    }
+
+    public function restGet(Shop $shop, string $endpoint, array $query = []): array {
+        $this->refreshIfNeeded($shop);
+        $url = "https://{$shop->shop_domain}/admin/api/" . config('shopify.api_version') . '/' . ltrim($endpoint, '/');
+        $res = Http::withHeaders([
+            'X-Shopify-Access-Token' => (string) $shop->access_token,
+            'Accept' => 'application/json',
+        ])
+        ->timeout(30)
+        ->retry(2, 300, throw: false)
+        ->get($url, $query);
+
+        if (!$res->successful()) {
+            throw new RuntimeException("Shopify REST GET {$endpoint} failed (HTTP {$res->status()}): " . mb_substr($res->body(), 0, 500));
+        }
+        return $res->json() ?? [];
+    }
+
+    public function restPost(Shop $shop, string $endpoint, array $data = []): array {
+        $this->refreshIfNeeded($shop);
+        $url = "https://{$shop->shop_domain}/admin/api/" . config('shopify.api_version') . '/' . ltrim($endpoint, '/');
+        $res = Http::withHeaders([
+            'X-Shopify-Access-Token' => (string) $shop->access_token,
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ])
+        ->timeout(35)
+        ->retry(2, 300, throw: false)
+        ->post($url, $data);
+
+        if (!$res->successful()) {
+            throw new RuntimeException("Shopify REST POST {$endpoint} failed (HTTP {$res->status()}): " . mb_substr($res->body(), 0, 500));
+        }
+        return $res->json() ?? [];
+    }
+
+    public function restPut(Shop $shop, string $endpoint, array $data = []): array {
+        $this->refreshIfNeeded($shop);
+        $url = "https://{$shop->shop_domain}/admin/api/" . config('shopify.api_version') . '/' . ltrim($endpoint, '/');
+        $res = Http::withHeaders([
+            'X-Shopify-Access-Token' => (string) $shop->access_token,
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ])
+        ->timeout(30)
+        ->retry(2, 300, throw: false)
+        ->put($url, $data);
+
+        if (!$res->successful()) {
+            throw new RuntimeException("Shopify REST PUT {$endpoint} failed (HTTP {$res->status()}): " . mb_substr($res->body(), 0, 500));
+        }
+        return $res->json() ?? [];
+    }
+
+    public function getThemes(Shop $shop): array {
+        $data = $this->restGet($shop, 'themes.json');
+        $themes = $data['themes'] ?? [];
+        $slug = explode('.', $shop->shop_domain)[0];
+
+        return array_map(function ($t) use ($shop, $slug) {
+            $isMain = ($t['role'] ?? '') === 'main';
+            $isSalessnap = str_contains(strtolower($t['name'] ?? ''), 'salessnap') || str_contains(strtolower($t['name'] ?? ''), 'promo') || str_contains(strtolower($t['name'] ?? ''), 'countdown');
+            return [
+                'id' => (string)$t['id'],
+                'name' => $t['name'] ?? 'Theme',
+                'role' => $t['role'] ?? 'unpublished',
+                'is_main' => $isMain,
+                'is_salessnap_copy' => $isSalessnap,
+                'processing' => (bool)($t['processing'] ?? false),
+                'updated_at' => $t['updated_at'] ?? null,
+                'preview_url' => "https://{$shop->shop_domain}?preview_theme_id={$t['id']}",
+                'admin_url' => "https://admin.shopify.com/store/{$slug}/themes/{$t['id']}/editor",
+            ];
+        }, $themes);
+    }
+
+    public function duplicateTheme(Shop $shop, string|int $sourceThemeId, string $newName, ?array $countdownConfig = null): array {
+        $source = (string)$sourceThemeId;
+        $themes = $this->getThemes($shop);
+        $srcTheme = collect($themes)->firstWhere('id', $source);
+        $srcName = $srcTheme['name'] ?? 'Theme';
+
+        if (empty($newName)) {
+            $newName = "[SaleSnap Promo] {$srcName} with Countdown";
+        }
+
+        $res = $this->restPost($shop, 'themes.json', [
+            'theme' => [
+                'name' => $newName,
+                'src' => "https://{$shop->shop_domain}/admin/api/" . config('shopify.api_version') . "/themes/{$source}.json",
+                'role' => 'unpublished',
+            ],
+        ]);
+
+        $created = $res['theme'] ?? null;
+        if (!$created || empty($created['id'])) {
+            $res = $this->restPost($shop, 'themes.json', [
+                'theme' => [
+                    'name' => $newName,
+                    'role' => 'unpublished',
+                ],
+            ]);
+            $created = $res['theme'] ?? [];
+        }
+
+        $createdId = $created['id'] ?? null;
+        if ($createdId && $countdownConfig) {
+            try {
+                $this->injectCountdown($shop, $createdId, $countdownConfig);
+            } catch (\Throwable $e) {
+                Log::warning("Could not inject countdown snippet into new theme {$createdId}: " . $e->getMessage());
+            }
+        }
+
+        return [
+            'id' => (string)($created['id'] ?? ''),
+            'name' => $created['name'] ?? $newName,
+            'role' => $created['role'] ?? 'unpublished',
+            'preview_url' => "https://{$shop->shop_domain}?preview_theme_id=" . ($created['id'] ?? ''),
+        ];
+    }
+
+    public function publishTheme(Shop $shop, string|int $themeId): array {
+        $currentThemes = $this->getThemes($shop);
+        $currentMain = collect($currentThemes)->firstWhere('is_main', true);
+        if ($currentMain && $currentMain['id'] !== (string)$themeId) {
+            $shop->update(['published_theme_id' => $currentMain['id']]);
+        }
+
+        $res = $this->restPut($shop, "themes/{$themeId}.json", [
+            'theme' => [
+                'id' => (int)$themeId,
+                'role' => 'main',
+            ],
+        ]);
+
+        $shop->update(['active_promo_theme_id' => (string)$themeId]);
+
+        return [
+            'success' => true,
+            'published_theme_id' => (string)$themeId,
+            'previous_theme_id' => $shop->published_theme_id,
+            'theme' => $res['theme'] ?? [],
+        ];
+    }
+
+    public function revertTheme(Shop $shop): array {
+        $targetId = $shop->published_theme_id;
+        if (!$targetId) {
+            throw new RuntimeException('No previous original theme was recorded to restore.');
+        }
+
+        $res = $this->restPut($shop, "themes/{$targetId}.json", [
+            'theme' => [
+                'id' => (int)$targetId,
+                'role' => 'main',
+            ],
+        ]);
+
+        $shop->update([
+            'published_theme_id' => null,
+            'active_promo_theme_id' => null,
+        ]);
+
+        return [
+            'success' => true,
+            'restored_theme_id' => (string)$targetId,
+        ];
+    }
+
+    public function injectCountdown(Shop $shop, string|int $themeId, array $config): bool {
+        $snippetContent = $this->generateCountdownLiquid($config, $shop);
+        $this->restPut($shop, "themes/{$themeId}/assets.json", [
+            'asset' => [
+                'key' => 'snippets/salessnap-countdown.liquid',
+                'value' => $snippetContent,
+            ],
+        ]);
+
+        try {
+            $themeLiquid = $this->restGet($shop, "themes/{$themeId}/assets.json", [
+                'asset[key]' => 'layout/theme.liquid',
+            ]);
+            $content = $themeLiquid['asset']['value'] ?? '';
+            $renderTag = "{% render 'salessnap-countdown' %}";
+
+            if ($content !== '' && !str_contains($content, 'salessnap-countdown')) {
+                if (str_contains($content, '<body')) {
+                    $content = preg_replace('/(<body[^>]*>)/i', "$1\n  " . $renderTag, $content, 1);
+                } elseif (str_contains($content, '</head>')) {
+                    $content = str_replace('</head>', "  " . $renderTag . "\n</head>", $content);
+                }
+
+                $this->restPut($shop, "themes/{$themeId}/assets.json", [
+                    'asset' => [
+                        'key' => 'layout/theme.liquid',
+                        'value' => $content,
+                    ],
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Could not automatically update layout/theme.liquid for theme {$themeId}: " . $e->getMessage());
+        }
+
+        return true;
+    }
+
+    public function generateCountdownLiquid(array $config, Shop $shop): string {
+        $headline = htmlspecialchars($config['headline'] ?? '⚡ FLASH SALE IS LIVE! Extra Discount Auto-Applied', ENT_QUOTES, 'UTF-8');
+        $subtext = htmlspecialchars($config['subtext'] ?? 'Special promotional deals ending soon. Shop now while supplies last!', ENT_QUOTES, 'UTF-8');
+        $endsAt = htmlspecialchars($config['ends_at'] ?? now()->addDays(2)->toIso8601String(), ENT_QUOTES, 'UTF-8');
+        $bgColor = htmlspecialchars($config['bg_color'] ?? '#111827', ENT_QUOTES, 'UTF-8');
+        $textColor = htmlspecialchars($config['text_color'] ?? '#ffffff', ENT_QUOTES, 'UTF-8');
+        $accentColor = htmlspecialchars($config['accent_color'] ?? '#f59e0b', ENT_QUOTES, 'UTF-8');
+        $btnText = htmlspecialchars($config['btn_text'] ?? 'Shop Deals Now', ENT_QUOTES, 'UTF-8');
+        $btnUrl = htmlspecialchars($config['btn_url'] ?? '/collections/all', ENT_QUOTES, 'UTF-8');
+        $position = ($config['position'] ?? 'top_sticky') === 'bottom_sticky' ? 'bottom: 0;' : 'top: 0;';
+
+        return <<<LIQUID
+{% comment %}
+  SaleSnap Flash Sale Countdown Announcement Bar
+  Automatically generated & synchronized with active promotions.
+{% endcomment %}
+<div id="salessnap-countdown-banner" style="position: sticky; {$position} z-index: 2147483640; width: 100%; background: {$bgColor}; color: {$textColor}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-bottom: 2px solid {$accentColor}; line-height: 1.4;">
+  <div style="max-width: 1200px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 12px; min-width: 240px;">
+      <span style="font-size: 20px; line-height: 1;">⚡</span>
+      <div>
+        <div style="font-weight: 700; font-size: 14px; letter-spacing: -0.01em;">{$headline}</div>
+        <div style="font-size: 12px; opacity: 0.85; margin-top: 2px;">{$subtext}</div>
+      </div>
+    </div>
+
+    <!-- Countdown Timer Units -->
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="text-align: center; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 8px; min-width: 44px;">
+        <span id="ss-days" style="font-size: 16px; font-weight: 800; color: {$accentColor}; display: block; line-height: 1.1;">00</span>
+        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Days</span>
+      </div>
+      <span style="font-weight: 700; color: {$accentColor};">:</span>
+      <div style="text-align: center; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 8px; min-width: 44px;">
+        <span id="ss-hours" style="font-size: 16px; font-weight: 800; color: {$accentColor}; display: block; line-height: 1.1;">00</span>
+        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Hours</span>
+      </div>
+      <span style="font-weight: 700; color: {$accentColor};">:</span>
+      <div style="text-align: center; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 8px; min-width: 44px;">
+        <span id="ss-mins" style="font-size: 16px; font-weight: 800; color: {$accentColor}; display: block; line-height: 1.1;">00</span>
+        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Mins</span>
+      </div>
+      <span style="font-weight: 700; color: {$accentColor};">:</span>
+      <div style="text-align: center; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 8px; min-width: 44px;">
+        <span id="ss-secs" style="font-size: 16px; font-weight: 800; color: {$accentColor}; display: block; line-height: 1.1;">00</span>
+        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Secs</span>
+      </div>
+    </div>
+
+    <!-- CTA Button & Close -->
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <a href="{$btnUrl}" style="display: inline-block; background: {$accentColor}; color: #111827; font-weight: 700; font-size: 12px; padding: 7px 16px; border-radius: 20px; text-decoration: none; transition: transform 0.1s ease, filter 0.1s ease;">{$btnText} →</a>
+      <button type="button" onclick="document.getElementById('salessnap-countdown-banner').style.display='none'" style="background: none; border: none; color: {$textColor}; opacity: 0.6; cursor: pointer; font-size: 18px; line-height: 1; padding: 4px;">×</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const targetDate = new Date("{$endsAt}").getTime();
+  function updateTimer() {
+    const now = new Date().getTime();
+    const diff = Math.max(0, targetDate - now);
+
+    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+    const elD = document.getElementById('ss-days');
+    const elH = document.getElementById('ss-hours');
+    const elM = document.getElementById('ss-mins');
+    const elS = document.getElementById('ss-secs');
+
+    if (elD) elD.textContent = String(d).padStart(2, '0');
+    if (elH) elH.textContent = String(h).padStart(2, '0');
+    if (elM) elM.textContent = String(m).padStart(2, '0');
+    if (elS) elS.textContent = String(s).padStart(2, '0');
+
+    if (diff <= 0) {
+      const banner = document.getElementById('salessnap-countdown-banner');
+      if (banner) banner.style.display = 'none';
+    }
+  }
+  updateTimer();
+  setInterval(updateTimer, 1000);
+})();
+</script>
+LIQUID;
     }
 
     private function refreshIfNeeded(Shop $shop): void {

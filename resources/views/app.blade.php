@@ -7,6 +7,7 @@
 <meta name="shop-domain" content="{{ $shop }}">
 <title>SaleSnap</title>
 <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+<link rel="stylesheet" href="/app.css">
 
 <style>
 :root {
@@ -676,6 +677,104 @@ body {
   display: block;
 }
 
+.polaris-dialog-large {
+  max-width: 960px;
+  width: 94vw;
+  max-height: 92vh;
+}
+.polaris-details-ribbon {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  background: #f6f6f7;
+  border: 1px solid #e1e3e5;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.polaris-details-ribbon-item {
+  font-size: 12px;
+}
+.polaris-details-ribbon-label {
+  color: #6d7175;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+.polaris-details-ribbon-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #202223;
+}
+.polaris-details-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid #ebebeb;
+  border-bottom: 1px solid #ebebeb;
+  margin-bottom: 16px;
+}
+.polaris-theme-card {
+  background: #ffffff;
+  border: 1px solid #e1e3e5;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.polaris-theme-card:hover {
+  border-color: #babfc3;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.polaris-theme-card.main-theme {
+  border-left: 4px solid #008060;
+  background: #fafcfb;
+}
+.polaris-theme-card.promo-theme {
+  border-left: 4px solid #f59e0b;
+}
+.polaris-color-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.polaris-color-picker {
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid #d2d5d8;
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+}
+.polaris-countdown-preview-box {
+  border: 1px solid #e1e3e5;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 14px 0;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+.polaris-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 768px) {
+  .polaris-settings-grid { grid-template-columns: 1fr; }
+  .polaris-dialog-large { width: 98vw; }
+}
+
 .polaris-footer {
   text-align: center;
   font-size: 11px;
@@ -701,6 +800,7 @@ body {
   <a href="/app?page=campaigns">Campaigns</a>
   <a href="/app?page=products">Products &amp; Collections</a>
   <a href="/app?page=bundles">Bundle Creator</a>
+  <a href="/app?page=themes">Theme &amp; Countdown</a>
   <a href="/app?page=snapshots">Snapshots &amp; Restores</a>
   <a href="/app?page=activity">Activity Log</a>
   <a href="/app?page=billing">Billing &amp; Plans</a>
@@ -716,6 +816,7 @@ body {
         <div class="polaris-title-row">
           <h1 id="page-title" class="polaris-title">SaleSnap</h1>
           <div class="polaris-header-actions">
+            <button class="polaris-btn" onclick="window.pmOpenThemePublishModal()">⚡ Theme &amp; Countdown</button>
             <button class="polaris-btn" onclick="window.pmOpenBundleModal('combo')">🎁 Create Bundle</button>
             <button class="polaris-btn polaris-btn-primary" id="new-campaign">＋ Create campaign</button>
           </div>
@@ -730,6 +831,7 @@ body {
       <button class="polaris-tab-item" data-page="campaigns">Campaigns</button>
       <button class="polaris-tab-item" data-page="products">Products &amp; Collections</button>
       <button class="polaris-tab-item" data-page="bundles">Bundle Creator</button>
+      <button class="polaris-tab-item" data-page="themes">Theme &amp; Countdown</button>
       <button class="polaris-tab-item" data-page="snapshots">Snapshots &amp; Restores</button>
       <button class="polaris-tab-item" data-page="activity">Activity Log</button>
       <button class="polaris-tab-item" data-page="billing">Billing &amp; Plans</button>
@@ -1108,1277 +1210,199 @@ body {
   </form>
 </dialog>
 
+<!-- Campaign Details Deep-View Modal -->
+<dialog id="campaign-details-dialog" class="polaris-dialog polaris-dialog-large">
+  <div class="polaris-dialog-header">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <h2 id="cd-title" class="polaris-heading" style="margin:0;">Campaign Details</h2>
+      <span id="cd-status-badge"></span>
+    </div>
+    <button type="button" class="polaris-close-btn" data-close="campaign-details-dialog" aria-label="Close">×</button>
+  </div>
+
+  <div class="polaris-dialog-body" style="max-height:72vh;overflow-y:auto;">
+    <!-- Ribbon summary cards -->
+    <div class="polaris-details-ribbon">
+      <div class="polaris-details-ribbon-item">
+        <div class="polaris-details-ribbon-label">Discount Rate</div>
+        <div class="polaris-details-ribbon-value" id="cd-discount-val">—</div>
+      </div>
+      <div class="polaris-details-ribbon-item">
+        <div class="polaris-details-ribbon-label">Schedule Window</div>
+        <div class="polaris-details-ribbon-value" id="cd-schedule-val" style="font-size:12px;font-weight:600;">—</div>
+      </div>
+      <div class="polaris-details-ribbon-item">
+        <div class="polaris-details-ribbon-label">Protected Products</div>
+        <div class="polaris-details-ribbon-value" id="cd-products-count">—</div>
+      </div>
+      <div class="polaris-details-ribbon-item">
+        <div class="polaris-details-ribbon-label">Snapshot Safety</div>
+        <div class="polaris-details-ribbon-value" id="cd-snapshot-status" style="color:#0e5b38;">100% Protected</div>
+      </div>
+    </div>
+
+    <!-- Real-time Action buttons toolbar -->
+    <div class="polaris-details-actions" id="cd-actions-bar"></div>
+
+    <!-- Section Header: Included Products -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <h3 class="polaris-subheading" style="margin:0;font-size:13px;font-weight:700;">Included Store Products (<span id="cd-prod-count-inline">0</span>)</h3>
+        <p class="polaris-text-subdued" style="margin:2px 0 0;font-size:11px;">Original base prices vs promotional sale prices. Click any item to view in Shopify Admin.</p>
+      </div>
+      <input class="polaris-input" id="cd-product-filter" placeholder="Filter items in campaign..." style="max-width:220px;font-size:12px;padding:4px 8px;">
+    </div>
+
+    <!-- Product items list container -->
+    <div id="cd-products-container" style="border:1px solid #e1e3e5;border-radius:8px;overflow:hidden;margin-bottom:16px;">
+      <div class="polaris-empty-picker">Loading products in this campaign…</div>
+    </div>
+
+    <!-- Snapshot & Audit History Section -->
+    <details style="border:1px solid #e1e3e5;border-radius:8px;padding:10px 14px;background:#fafbfb;">
+      <summary style="font-weight:600;font-size:12px;cursor:pointer;color:#202223;">🔍 View Snapshot Hashes &amp; Integrity Logs</summary>
+      <div id="cd-snapshots-logs-container" style="margin-top:10px;font-size:11px;">
+        <div class="polaris-empty-picker">No conflicts detected. Original data verified.</div>
+      </div>
+    </details>
+  </div>
+
+  <div class="polaris-dialog-footer">
+    <button type="button" class="polaris-btn" data-close="campaign-details-dialog">Close</button>
+  </div>
+</dialog>
+
+<!-- Theme Copy & Countdown Bar Publishing Modal -->
+<dialog id="theme-publish-dialog" class="polaris-dialog polaris-dialog-large">
+  <form id="theme-publish-form" method="dialog">
+    <div class="polaris-dialog-header">
+      <div>
+        <h2 class="polaris-heading">Publish Theme Copy with Countdown</h2>
+        <p class="polaris-text-subdued">Duplicate a store theme, inject a live ticking countdown announcement bar, and publish it safely.</p>
+      </div>
+      <button type="button" class="polaris-close-btn" data-close="theme-publish-dialog" aria-label="Close">×</button>
+    </div>
+
+    <div class="polaris-dialog-body" style="max-height:72vh;overflow-y:auto;">
+      <div class="polaris-grid-2">
+        <div class="polaris-form-group">
+          <label class="polaris-label" for="theme-source-select">Source Theme to Duplicate <span class="required">*</span></label>
+          <select class="polaris-input" id="theme-source-select">
+            <option value="">Loading store themes…</option>
+          </select>
+        </div>
+        <div class="polaris-form-group">
+          <label class="polaris-label" for="theme-copy-name">New Theme Copy Name <span class="required">*</span></label>
+          <input class="polaris-input" id="theme-copy-name" value="[SaleSnap Promo] Dawn with Countdown" required>
+        </div>
+      </div>
+
+      <!-- Live Interactive Countdown Preview -->
+      <label class="polaris-label" style="margin-top:8px;">Live Countdown Announcement Bar Preview</label>
+      <div class="polaris-countdown-preview-box">
+        <div id="countdown-banner-live-preview" style="background:#111827;color:#ffffff;padding:10px 16px;border-bottom:2px solid #f59e0b;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;font-family:sans-serif;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:20px;">⚡</span>
+              <div>
+                <strong id="prev-headline" style="font-size:13px;display:block;">⚡ FLASH SALE IS LIVE! Extra 20% Off Selected Items</strong>
+                <span id="prev-subtext" style="font-size:11px;opacity:0.85;">Limited time store promotion. Discounts auto-applied in cart.</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="background:rgba(255,255,255,0.15);border-radius:4px;padding:3px 6px;text-align:center;min-width:36px;">
+                <span id="prev-d" style="color:#f59e0b;font-weight:800;font-size:14px;display:block;">01</span>
+                <span style="font-size:8px;text-transform:uppercase;">Days</span>
+              </div>
+              <span style="color:#f59e0b;font-weight:700;">:</span>
+              <div style="background:rgba(255,255,255,0.15);border-radius:4px;padding:3px 6px;text-align:center;min-width:36px;">
+                <span id="prev-h" style="color:#f59e0b;font-weight:800;font-size:14px;display:block;">14</span>
+                <span style="font-size:8px;text-transform:uppercase;">Hrs</span>
+              </div>
+              <span style="color:#f59e0b;font-weight:700;">:</span>
+              <div style="background:rgba(255,255,255,0.15);border-radius:4px;padding:3px 6px;text-align:center;min-width:36px;">
+                <span id="prev-m" style="color:#f59e0b;font-weight:800;font-size:14px;display:block;">32</span>
+                <span style="font-size:8px;text-transform:uppercase;">Min</span>
+              </div>
+              <span style="color:#f59e0b;font-weight:700;">:</span>
+              <div style="background:rgba(255,255,255,0.15);border-radius:4px;padding:3px 6px;text-align:center;min-width:36px;">
+                <span id="prev-s" style="color:#f59e0b;font-weight:800;font-size:14px;display:block;">45</span>
+                <span style="font-size:8px;text-transform:uppercase;">Sec</span>
+              </div>
+            </div>
+            <div>
+              <span id="prev-btn" style="background:#f59e0b;color:#111827;font-weight:700;font-size:11px;padding:5px 12px;border-radius:14px;display:inline-block;">Shop Deals Now →</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Countdown Bar Controls -->
+      <div class="polaris-settings-grid">
+        <div class="polaris-form-group">
+          <label class="polaris-sublabel" for="theme-bar-headline">Banner Headline</label>
+          <input class="polaris-input" id="theme-bar-headline" value="⚡ FLASH SALE IS LIVE! Extra %discount%% Off Selected Items">
+        </div>
+        <div class="polaris-form-group">
+          <label class="polaris-sublabel" for="theme-bar-subtext">Urgency Subtext</label>
+          <input class="polaris-input" id="theme-bar-subtext" value="Limited time store promotion. Discounts auto-applied in cart.">
+        </div>
+      </div>
+
+      <div class="polaris-settings-grid">
+        <div class="polaris-form-group">
+          <label class="polaris-sublabel">Background &amp; Text Colors</label>
+          <div style="display:flex;gap:12px;">
+            <div class="polaris-color-input-wrapper">
+              <input type="color" id="theme-bg-color-picker" class="polaris-color-picker" value="#111827">
+              <input class="polaris-input" id="theme-bg-color-text" value="#111827" style="width:90px;font-family:monospace;font-size:12px;">
+            </div>
+            <div class="polaris-color-input-wrapper">
+              <input type="color" id="theme-text-color-picker" class="polaris-color-picker" value="#ffffff">
+              <input class="polaris-input" id="theme-text-color-text" value="#ffffff" style="width:90px;font-family:monospace;font-size:12px;">
+            </div>
+          </div>
+        </div>
+
+        <div class="polaris-form-group">
+          <label class="polaris-sublabel">Accent / Timer Highlight Color</label>
+          <div class="polaris-color-input-wrapper">
+            <input type="color" id="theme-accent-color-picker" class="polaris-color-picker" value="#f59e0b">
+            <input class="polaris-input" id="theme-accent-color-text" value="#f59e0b" style="width:90px;font-family:monospace;font-size:12px;">
+          </div>
+        </div>
+      </div>
+
+      <div class="polaris-settings-grid">
+        <div class="polaris-form-group">
+          <label class="polaris-sublabel" for="theme-btn-text">CTA Button Text</label>
+          <input class="polaris-input" id="theme-btn-text" value="Shop Deals Now">
+        </div>
+        <div class="polaris-form-group">
+          <label class="polaris-sublabel" for="theme-btn-url">CTA Button Link</label>
+          <input class="polaris-input" id="theme-btn-url" value="/collections/all">
+        </div>
+      </div>
+
+      <div class="polaris-form-group">
+        <label class="polaris-checkbox-label">
+          <input type="checkbox" id="theme-auto-publish-check" checked>
+          <span><strong>Publish as live storefront theme immediately upon duplication</strong> (Previous live theme will be remembered so you can revert anytime).</span>
+        </label>
+      </div>
+
+      <div id="theme-publish-error" class="polaris-banner polaris-banner-critical hidden" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="polaris-dialog-footer">
+      <button type="button" class="polaris-btn" data-close="theme-publish-dialog">Cancel</button>
+      <button type="submit" class="polaris-btn polaris-btn-primary" id="theme-publish-submit-btn">Duplicate &amp; Publish Theme Copy</button>
+    </div>
+  </form>
+</dialog>
+
 <div id="toast" class="polaris-toast" role="status"></div>
 
-<script>
-(() => {
-  'use strict';
-
-  const $ = s => document.querySelector(s);
-  const $$ = s => [...document.querySelectorAll(s)];
-  const apiKey = $('meta[name="shopify-api-key"]')?.content || '';
-  const shopDomain = $('meta[name="shop-domain"]')?.content || '';
-
-  let dashboard = null;
-  let billingData = null;
-  let selected = new Map();
-  let bundleSelected = new Map();
-  let currentProducts = [];
-  let currentCollections = [];
-  let catalogSelectedIds = new Set();
-  let activeFilter = 'all';
-  let restoreId = null;
-  let productTimer = null;
-  let bundleProductTimer = null;
-  let authRedirectStarted = false;
-  let selectionMode = 'products';
-  let catalogTab = 'products';
-  let bundleDialogMode = 'combo';
-
-  const pageHeaders = {
-    overview: ['SaleSnap', 'Schedule selected product changes with pre-change snapshots and restore reporting.'],
-    campaigns: ['Campaigns', 'Plan scheduled product promotions and review their restore status.'],
-    products: ['Products & Collections', 'Explore store products and collections to launch flash sales or bulk bundles.'],
-    bundles: ['Bundle Creator', 'Create high-converting multi-product bundles and bulk value packs in Shopify.'],
-    snapshots: ['Snapshots & Restores', 'Review campaign snapshots, restore outcomes, and any skipped fields.'],
-    activity: ['Activity Log', 'A clear audit trail of scheduled campaigns, restores, and bundle creations.'],
-    billing: ['Billing & Plans', 'Manage your SaleSnap app subscription and unlock advanced capabilities.'],
-    settings: ['Settings', 'Review this app’s Shopify connection and data handling.']
-  };
-
-  function esc(v) {
-    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  }
-
-  function toast(text) {
-    let el = $('#toast');
-    if (!el) return;
-    el.textContent = text;
-    el.classList.add('show');
-    clearTimeout(window.pmToast);
-    window.pmToast = setTimeout(() => el.classList.remove('show'), 3500);
-  }
-
-  function banner(text) {
-    let e = $('#error-banner');
-    if (!e) return;
-    e.innerHTML = '<div class="polaris-banner-icon">!</div><div class="polaris-banner-content"><strong>Could not load store data</strong><p>' + esc(text) + '</p></div>';
-    e.classList.remove('hidden');
-  }
-
-  async function token() {
-    if (!window.shopify || typeof window.shopify.idToken !== 'function') {
-      throw new Error('Open SaleSnap from Shopify Admin to securely load your store.');
-    }
-    return await window.shopify.idToken();
-  }
-
-  async function api(path, options = {}) {
-    const idToken = await token();
-    const res = await fetch('/api' + path, {
-      ...options,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + idToken,
-        ...(options.headers || {})
-      }
-    });
-
-    let data = {};
-    try { data = await res.json(); } catch {}
-
-    if (!res.ok) {
-      if (res.status === 401 && !authRedirectStarted && shopDomain) {
-        authRedirectStarted = true;
-        const authUrl = window.location.origin + '/auth?shop=' + encodeURIComponent(shopDomain);
-        if (window.shopify && typeof window.shopify.open === 'function') {
-          window.shopify.open(authUrl, '_top');
-        } else if (typeof open === 'function' && window !== window.top) {
-          try { open(authUrl, '_top'); } catch (e) { try { window.top.location.href = authUrl; } catch (err) {} }
-        } else {
-          try { window.top.location.href = authUrl; } catch (e) { window.location.href = authUrl; }
-        }
-        throw new Error('Reauthorizing this store with Shopify…');
-      }
-      let msg = data.message || 'Request failed (' + res.status + ').';
-      if (data.errors) msg = Object.values(data.errors).flat().join(' ');
-      throw new Error(msg);
-    }
-    return data;
-  }
-
-  function statusBadge(status) {
-    const m = {
-      running: ['Live', 'polaris-badge-success'],
-      applying: ['Starting', 'polaris-badge-warning'],
-      scheduled: ['Scheduled', 'polaris-badge-warning'],
-      completed: ['Completed', 'polaris-badge-neutral'],
-      completed_with_conflicts: ['Conflicts noted', 'polaris-badge-attention'],
-      restoring: ['Restoring', 'polaris-badge-warning'],
-      needs_attention: ['Needs attention', 'polaris-badge-attention'],
-      cancelled: ['Cancelled', 'polaris-badge-neutral']
-    };
-    let v = m[status] || [status, 'polaris-badge-neutral'];
-    return `<span class="polaris-badge ${v[1]}">${esc(v[0])}</span>`;
-  }
-
-  function formatDate(v) {
-    if (!v) return '—';
-    return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(v));
-  }
-
-  function campaignAction(c) {
-    if (c.snapshot_complete && ['running', 'needs_attention'].includes(c.status)) {
-      return `<button class="polaris-btn polaris-btn-plain restore-now" data-id="${esc(c.id)}" data-name="${esc(c.name)}">Rollback now</button>`;
-    }
-    if (c.status === 'scheduled') {
-      return `
-        <div style="display:flex;gap:6px;">
-          <button class="polaris-btn polaris-btn-plain start-campaign-now" data-id="${esc(c.id)}" style="color:#008060;font-weight:600;">Start now</button>
-          <button class="polaris-btn polaris-btn-plain cancel-campaign" data-id="${esc(c.id)}">Cancel</button>
-        </div>
-      `;
-    }
-    if (c.status === 'needs_attention' && !c.snapshot_complete) {
-      return `<button class="polaris-btn polaris-btn-plain retry-campaign" data-id="${esc(c.id)}">Retry</button>`;
-    }
-    return '';
-  }
-
-  function attachCampaignActions() {
-    $$('.restore-now').forEach(b => b.onclick = () => openRestore(b.dataset.id, b.dataset.name));
-    $$('.start-campaign-now').forEach(b => b.onclick = () => startCampaignNow(b.dataset.id));
-    $$('.cancel-campaign').forEach(b => b.onclick = () => cancelCampaign(b.dataset.id));
-    $$('.retry-campaign').forEach(b => b.onclick = () => retryCampaign(b.dataset.id));
-  }
-
-  async function startCampaignNow(id) {
-    if (!window.confirm('Start this promotion now and apply discounted prices in Shopify immediately?')) return;
-    try {
-      const d = await api(`/campaigns/${id}/start-now`, { method: 'POST', body: '{}' });
-      toast(d.message || 'Campaign started and live in store!');
-      await loadDashboard();
-    } catch (e) {
-      toast(e.message);
-    }
-  }
-
-  async function cancelCampaign(id) {
-    if (!window.confirm('Cancel this scheduled campaign? No product changes have been made yet.')) return;
-    try {
-      await api(`/campaigns/${id}/cancel`, { method: 'POST', body: '{}' });
-      toast('Scheduled campaign cancelled.');
-      await loadDashboard();
-    } catch (e) {
-      toast(e.message);
-    }
-  }
-
-  async function retryCampaign(id) {
-    try {
-      const d = await api(`/campaigns/${id}/retry`, { method: 'POST', body: '{}' });
-      toast(d.message || 'Retry queued.');
-      await loadDashboard();
-    } catch (e) {
-      toast(e.message);
-    }
-  }
-
-  function renderCampaigns() {
-    let items = dashboard?.campaigns || [];
-    if (activeFilter !== 'all') {
-      items = items.filter(c => activeFilter === 'running' ? ['running', 'applying', 'restoring', 'needs_attention'].includes(c.status) : (activeFilter === 'completed' ? ['completed', 'completed_with_conflicts'].includes(c.status) : c.status === activeFilter));
-    }
-    let list = $('#campaign-list');
-    if (!items.length) {
-      list.innerHTML = '<div class="polaris-empty-state">No campaigns in this view. Click "Create campaign" to schedule your first promotion.</div>';
-      return;
-    }
-    list.innerHTML = items.map(c => `
-      <div class="polaris-row">
-        <div>
-          <div class="polaris-row-title">${esc(c.name)}</div>
-          <div class="polaris-row-meta">${esc(Object.keys(c.actions || {}).join(' · ') || 'Promotion')} · ${c.snapshot_complete ? esc(c.snapshot_count) + ' snapshot items' : 'snapshot pending'}</div>
-        </div>
-        <div>${statusBadge(c.status)}${c.error_count ? '<div class="polaris-row-meta">' + esc(c.error_count) + ' error(s)</div>' : ''}</div>
-        <div class="polaris-row-meta">${c.status === 'scheduled' ? 'Starts ' + formatDate(c.starts_at) : 'Ends ' + formatDate(c.ends_at)}</div>
-        <div>${campaignAction(c)}</div>
-      </div>
-    `).join('');
-    attachCampaignActions();
-  }
-
-  async function loadDashboard() {
-    try {
-      let d = await api('/dashboard');
-      dashboard = d;
-      $('#stat-live').textContent = d.stats.live;
-      $('#stat-scheduled').textContent = d.stats.scheduled;
-      $('#stat-protected').textContent = d.stats.products_protected;
-      $('#stat-rollbacks').textContent = d.stats.rollbacks;
-      renderCampaigns();
-      $('#error-banner').classList.add('hidden');
-    } catch (e) {
-      banner(e.message);
-      $('#campaign-list').innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
-    }
-  }
-
-  function setPage(page) {
-    $$('.polaris-tab-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
-    $('#page-title').textContent = pageHeaders[page]?.[0] || 'SaleSnap';
-    $('#page-desc').textContent = pageHeaders[page]?.[1] || '';
-    let isOverview = page === 'overview';
-    $('#overview-page').classList.toggle('hidden', !isOverview);
-    $('#detail-page').classList.toggle('hidden', isOverview);
-    if (!isOverview) renderDetail(page);
-  }
-
-  async function renderDetail(page) {
-    let title = pageHeaders[page]?.[0] || page;
-    $('#detail-title').textContent = title;
-    $('#detail-copy').textContent = pageHeaders[page]?.[1] || '';
-    let body = $('#detail-body');
-
-    if (page === 'campaigns') {
-      body.innerHTML = '<div id="all-campaigns" class="polaris-campaign-list"></div>';
-      $('#all-campaigns').innerHTML = (dashboard?.campaigns || []).length ? dashboard.campaigns.map(c => `
-        <div class="polaris-row">
-          <div>
-            <div class="polaris-row-title">${esc(c.name)}</div>
-            <div class="polaris-row-meta">${esc(Object.keys(c.actions || {}).join(' · '))} · ${c.product_count} products</div>
-          </div>
-          <div>${statusBadge(c.status)}</div>
-          <div class="polaris-row-meta">${formatDate(c.starts_at)} – ${formatDate(c.ends_at)}</div>
-          <div>${campaignAction(c)}</div>
-        </div>
-      `).join('') : '<div class="polaris-empty-state">No campaigns created yet.</div>';
-      attachCampaignActions();
-      return;
-    }
-
-    if (page === 'bundles') {
-      body.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-          <div style="display:flex;gap:8px;">
-            <button class="polaris-btn polaris-btn-primary" id="open-bundle-combo-btn">＋ Create Combo Bundle</button>
-            <button class="polaris-btn" id="open-bundle-multipack-btn">⚡ Bulk Multi-Packs</button>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <input class="polaris-input" id="bundle-search-input" placeholder="Search bundles in store..." style="max-width:260px;">
-            <button class="polaris-btn" id="bundle-search-btn">Filter</button>
-          </div>
-        </div>
-        <div id="bundle-results-box"><div class="polaris-empty-state">Loading your store bundles…</div></div>
-      `;
-
-      $('#open-bundle-combo-btn').onclick = () => openBundleModal('combo');
-      $('#open-bundle-multipack-btn').onclick = () => openBundleModal('multipack');
-      $('#bundle-search-btn').onclick = () => loadStoreBundles($('#bundle-search-input').value);
-      $('#bundle-search-input').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); loadStoreBundles($('#bundle-search-input').value); } };
-
-      loadStoreBundles();
-      return;
-    }
-
-    if (page === 'products') {
-      catalogSelectedIds.clear();
-      body.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-          <div class="polaris-segmented-control" style="max-width:300px;margin-bottom:0;">
-            <button class="polaris-segment-btn ${catalogTab === 'products' ? 'active' : ''}" id="catalog-tab-products">Products</button>
-            <button class="polaris-segment-btn ${catalogTab === 'collections' ? 'active' : ''}" id="catalog-tab-collections">Collections</button>
-          </div>
-
-          <div style="display:flex;gap:8px;">
-            <button class="polaris-btn" id="bulk-bundle-from-catalog" disabled>🎁 Create Bundle (0)</button>
-            <button class="polaris-btn" id="bulk-multipack-from-catalog" disabled>⚡ Bulk Multi-Packs (0)</button>
-            <button class="polaris-btn polaris-btn-primary" id="bulk-discount-from-catalog" disabled>＋ Discount Selected (0)</button>
-          </div>
-        </div>
-
-        <div id="catalog-search-bar" style="display:flex;gap:10px;max-width:500px;margin-bottom:16px;">
-          <input class="polaris-input" id="catalog-search-input" placeholder="Search products by title...">
-          <button class="polaris-btn" id="catalog-search-btn">Search</button>
-        </div>
-
-        <div id="catalog-results-box"><div class="polaris-empty-state">Loading your catalog…</div></div>
-      `;
-
-      $('#catalog-tab-products').onclick = () => {
-        catalogTab = 'products';
-        catalogSelectedIds.clear();
-        $('#catalog-tab-products').classList.add('active');
-        $('#catalog-tab-collections').classList.remove('active');
-        $('#catalog-search-input').placeholder = 'Search products by title...';
-        updateCatalogBulkButtons();
-        loadCatalogProducts();
-      };
-
-      $('#catalog-tab-collections').onclick = () => {
-        catalogTab = 'collections';
-        catalogSelectedIds.clear();
-        $('#catalog-tab-collections').classList.add('active');
-        $('#catalog-tab-products').classList.remove('active');
-        $('#catalog-search-input').placeholder = 'Filter collections...';
-        updateCatalogBulkButtons();
-        loadCatalogCollections();
-      };
-
-      $('#catalog-search-btn').onclick = () => {
-        if (catalogTab === 'products') loadCatalogProducts($('#catalog-search-input').value);
-        else loadCatalogCollections($('#catalog-search-input').value);
-      };
-
-      $('#catalog-search-input').onkeydown = e => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          if (catalogTab === 'products') loadCatalogProducts($('#catalog-search-input').value);
-          else loadCatalogCollections($('#catalog-search-input').value);
-        }
-      };
-
-      $('#bulk-bundle-from-catalog').onclick = () => {
-        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
-        openBundleModal('combo', prods);
-      };
-
-      $('#bulk-multipack-from-catalog').onclick = () => {
-        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
-        openBundleModal('multipack', prods);
-      };
-
-      $('#bulk-discount-from-catalog').onclick = () => {
-        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
-        openCreateWithProducts(prods);
-      };
-
-      loadCatalogProducts();
-      return;
-    }
-
-    if (page === 'snapshots') {
-      body.innerHTML = '<div class="polaris-empty-state">Loading snapshot records…</div>';
-      try {
-        let d = await api('/snapshots');
-        if (!d.snapshots.length) {
-          body.innerHTML = '<div class="polaris-empty-state">Snapshots will appear here automatically when a campaign runs.</div>';
-          return;
-        }
-        body.innerHTML = `
-          <div style="overflow-x:auto;">
-            <table class="polaris-table">
-              <thead>
-                <tr><th>CAMPAIGN</th><th>PRODUCT</th><th>STATUS</th><th>CONFLICTS / DETAILS</th></tr>
-              </thead>
-              <tbody>
-                ${d.snapshots.map(s => `
-                  <tr>
-                    <td><strong>${esc(s.campaign)}</strong></td>
-                    <td>${esc(s.product_title || 'Product')}<div class="polaris-row-meta">GID: ${esc(s.product_gid.split('/').pop())}</div></td>
-                    <td>${statusBadge(s.status)}</td>
-                    <td>${esc([...(s.conflicts || []), s.last_error || ''].filter(Boolean).join('; ') || 'Protected')}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        `;
-      } catch (e) {
-        body.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
-      }
-      return;
-    }
-
-    if (page === 'activity') {
-      body.innerHTML = (dashboard?.logs || []).length ? `
-        <div style="overflow-x:auto;">
-          <table class="polaris-table">
-            <thead>
-              <tr><th>EVENT</th><th>TIMESTAMP</th><th>LEVEL</th><th>DETAILS</th></tr>
-            </thead>
-            <tbody>
-              ${dashboard.logs.map(l => `
-                <tr>
-                  <td><strong>${esc(l.event.replaceAll('_', ' '))}</strong></td>
-                  <td>${formatDate(l.created_at)}</td>
-                  <td><span class="polaris-badge polaris-badge-neutral">${esc(l.severity)}</span></td>
-                  <td><code>${esc(JSON.stringify(l.details || {}))}</code></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      ` : '<div class="polaris-empty-state">Activity logs will appear when promotions are scheduled.</div>';
-      return;
-    }
-
-    if (page === 'billing') {
-      body.innerHTML = '<div class="polaris-empty-state">Loading billing details…</div>';
-      await loadBillingPage(body);
-      return;
-    }
-
-    // Settings Page
-    body.innerHTML = `
-      <div class="polaris-banner polaris-banner-info">
-        <div class="polaris-banner-icon">✓</div>
-        <div class="polaris-banner-content">
-          <strong>Store Connection Active</strong>
-          <p>SaleSnap is connected to <strong>${esc(shopDomain)}</strong> with read/write product permissions and pre-change snapshot integrity checks.</p>
-        </div>
-      </div>
-      <p style="font-size:12px;color:#6d7175;margin-top:16px;">SaleSnap operates using Shopify Admin GraphQL API with session tokens. Stored prices and snapshots are encrypted at rest.</p>
-    `;
-  }
-
-  async function loadBillingPage(container) {
-    try {
-      const data = await api('/billing');
-      billingData = data;
-      const isPro = data.plan === 'pro' && data.subscription_status === 'ACTIVE';
-
-      container.innerHTML = `
-        <div class="polaris-banner ${isPro ? 'polaris-banner-info' : 'polaris-banner-warning'}">
-          <div class="polaris-banner-icon">${isPro ? '✓' : 'ⓘ'}</div>
-          <div class="polaris-banner-content">
-            <strong>Current Plan: ${isPro ? 'SaleSnap Pro (Active)' : 'Free Tier'}</strong>
-            <p>${isPro ? 'You have access to unlimited promotions, automatic rollback, and priority support.' : 'Upgrade to Pro to unlock unlimited campaigns and collection-wide discounts.'}</p>
-          </div>
-        </div>
-
-        <div class="polaris-pricing-grid">
-          <div class="polaris-plan-card">
-            <h3 class="polaris-plan-title">Free Tier</h3>
-            <div class="polaris-plan-price">$0 <small>/ month</small></div>
-            <p class="polaris-text-subdued">Basic product price scheduling</p>
-            <ul class="polaris-plan-features">
-              <li><b>✓</b> Up to 3 active campaigns</li>
-              <li><b>✓</b> Individual product discounts</li>
-              <li><b>✓</b> Pre-change price snapshot</li>
-              <li><b>✓</b> Manual rollback</li>
-            </ul>
-            <button class="polaris-btn" disabled>${!isPro ? 'Current Plan' : 'Free Tier'}</button>
-          </div>
-
-          <div class="polaris-plan-card featured">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <h3 class="polaris-plan-title">SaleSnap Pro</h3>
-              <span class="polaris-badge polaris-badge-success">7-Day Free Trial</span>
-            </div>
-            <div class="polaris-plan-price">$9.99 <small>/ month</small></div>
-            <p class="polaris-text-subdued">Full automated promotion automation</p>
-            <ul class="polaris-plan-features">
-              <li><b>✓</b> <strong>Unlimited</strong> active campaigns</li>
-              <li><b>✓</b> Collection-wide bulk selection</li>
-              <li><b>✓</b> Automated end-date rollback</li>
-              <li><b>✓</b> Emergency conflict detection</li>
-              <li><b>✓</b> Priority queue worker</li>
-            </ul>
-            ${isPro ? `
-              <button class="polaris-btn polaris-btn-destructive" id="cancel-sub-btn">Cancel Pro Subscription</button>
-            ` : `
-              <button class="polaris-btn polaris-btn-primary" id="upgrade-pro-btn">Start 7-Day Free Trial</button>
-            `}
-          </div>
-        </div>
-      `;
-
-      if ($('#upgrade-pro-btn')) {
-        $('#upgrade-pro-btn').onclick = async () => {
-          const btn = $('#upgrade-pro-btn');
-          btn.disabled = true;
-          btn.textContent = 'Redirecting to Shopify Billing…';
-          try {
-            const res = await api('/billing/subscribe', { method: 'POST', body: JSON.stringify({ plan: 'pro' }) });
-            if (res.confirmation_url) {
-              if (window.shopify && typeof window.shopify.open === 'function') {
-                window.shopify.open(res.confirmation_url, '_top');
-              } else {
-                window.top.location.href = res.confirmation_url;
-              }
-            }
-          } catch (e) {
-            toast(e.message);
-            btn.disabled = false;
-            btn.textContent = 'Start 7-Day Free Trial';
-          }
-        };
-      }
-
-      if ($('#cancel-sub-btn')) {
-        $('#cancel-sub-btn').onclick = async () => {
-          if (!window.confirm('Are you sure you want to cancel your Pro plan? Your store will return to the Free Tier.')) return;
-          const btn = $('#cancel-sub-btn');
-          btn.disabled = true;
-          try {
-            const res = await api('/billing/cancel', { method: 'POST', body: '{}' });
-            toast(res.message || 'Subscription cancelled.');
-            await loadBillingPage(container);
-          } catch (e) {
-            toast(e.message);
-            btn.disabled = false;
-          }
-        };
-      }
-    } catch (e) {
-      container.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
-    }
-  }
-
-  async function loadCatalogProducts(query = '') {
-    const box = $('#catalog-results-box');
-    if (!box) return;
-    box.innerHTML = '<div class="polaris-empty-state">Searching products…</div>';
-    try {
-      const { products } = await api('/products?q=' + encodeURIComponent(query));
-      currentProducts = products;
-      if (!products.length) {
-        box.innerHTML = '<div class="polaris-empty-state">No products found matching your search.</div>';
-        return;
-      }
-      box.innerHTML = `
-        <div style="overflow-x:auto;">
-          <table class="polaris-table">
-            <thead>
-              <tr>
-                <th style="width:36px;"><input type="checkbox" id="catalog-select-all"></th>
-                <th>PRODUCT</th>
-                <th>PRICE</th>
-                <th>STATUS</th>
-                <th>VARIANTS</th>
-                <th>ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${products.map(p => `
-                <tr>
-                  <td><input type="checkbox" class="catalog-row-check" data-id="${esc(p.id)}" ${catalogSelectedIds.has(p.id) ? 'checked' : ''}></td>
-                  <td>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      ${p.image ? `<img src="${esc(p.image)}" class="polaris-product-thumb" alt="">` : '<div class="polaris-product-thumb"></div>'}
-                      <div><strong>${esc(p.title)}</strong><div class="polaris-row-meta">${esc(p.handle)}</div></div>
-                    </div>
-                  </td>
-                  <td><strong>$${esc(p.price)}</strong></td>
-                  <td><span class="polaris-badge polaris-badge-success">${esc(p.status)}</span></td>
-                  <td>${esc(p.variants_count || 1)} variant(s)</td>
-                  <td>
-                    <div style="display:flex;gap:6px;">
-                      <button class="polaris-btn polaris-btn-plain start-promo-for-prod" data-id="${esc(p.id)}">＋ Discount</button>
-                      <button class="polaris-btn polaris-btn-plain start-bundle-for-prod" data-id="${esc(p.id)}">🎁 Bundle</button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-
-      $('#catalog-select-all').onchange = (e) => {
-        const checked = e.target.checked;
-        $$('.catalog-row-check').forEach(cb => {
-          cb.checked = checked;
-          if (checked) catalogSelectedIds.add(cb.dataset.id);
-          else catalogSelectedIds.delete(cb.dataset.id);
-        });
-        updateCatalogBulkButtons();
-      };
-
-      $$('.catalog-row-check').forEach(cb => {
-        cb.onchange = () => {
-          if (cb.checked) catalogSelectedIds.add(cb.dataset.id);
-          else catalogSelectedIds.delete(cb.dataset.id);
-          updateCatalogBulkButtons();
-        };
-      });
-
-      $$('.start-promo-for-prod').forEach(btn => {
-        btn.onclick = () => {
-          const p = currentProducts.find(x => x.id === btn.dataset.id);
-          openCreateWithProduct(p);
-        };
-      });
-
-      $$('.start-bundle-for-prod').forEach(btn => {
-        btn.onclick = () => {
-          const p = currentProducts.find(x => x.id === btn.dataset.id);
-          openBundleModal('combo', p ? [p] : []);
-        };
-      });
-    } catch (e) {
-      box.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
-    }
-  }
-
-  async function loadCatalogCollections(query = '') {
-    const box = $('#catalog-results-box');
-    if (!box) return;
-    box.innerHTML = '<div class="polaris-empty-state">Loading collections…</div>';
-    try {
-      const { collections } = await api('/collections?q=' + encodeURIComponent(query));
-      currentCollections = collections;
-      if (!collections.length) {
-        box.innerHTML = '<div class="polaris-empty-state">No collections found in your store.</div>';
-        return;
-      }
-      box.innerHTML = `
-        <div style="overflow-x:auto;">
-          <table class="polaris-table">
-            <thead><tr><th>COLLECTION</th><th>PRODUCTS</th><th>HANDLE</th><th>ACTIONS</th></tr></thead>
-            <tbody>
-              ${collections.map(c => `
-                <tr>
-                  <td>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      ${c.image ? `<img src="${esc(c.image)}" class="polaris-product-thumb" alt="">` : '<div class="polaris-product-thumb"></div>'}
-                      <strong>${esc(c.title)}</strong>
-                    </div>
-                  </td>
-                  <td><strong>${esc(c.products_count)} products</strong></td>
-                  <td><code>${esc(c.handle)}</code></td>
-                  <td>
-                    <div style="display:flex;gap:6px;">
-                      <button class="polaris-btn polaris-btn-plain start-promo-for-col" data-id="${esc(c.id)}">＋ Discount All</button>
-                      <button class="polaris-btn polaris-btn-plain start-bundle-for-col" data-id="${esc(c.id)}" data-title="${esc(c.title)}">🎁 Create Collection Bundle</button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-
-      $$('.start-promo-for-col').forEach(btn => {
-        btn.onclick = () => openCreateWithCollection(btn.dataset.id);
-      });
-
-      $$('.start-bundle-for-col').forEach(btn => {
-        btn.onclick = async () => {
-          btn.disabled = true;
-          btn.textContent = 'Loading collection…';
-          try {
-            const { products } = await api('/products?collection_id=' + encodeURIComponent(btn.dataset.id));
-            openBundleModal('combo', products, btn.dataset.title + ' Bundle');
-          } catch (e) {
-            toast(e.message);
-          } finally {
-            btn.disabled = false;
-            btn.textContent = '🎁 Create Collection Bundle';
-          }
-        };
-      });
-    } catch (e) {
-      box.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
-    }
-  }
-
-  async function loadStoreBundles(query = '') {
-    const box = $('#bundle-results-box');
-    if (!box) return;
-    box.innerHTML = '<div class="polaris-empty-state">Loading bundles from your Shopify store…</div>';
-    try {
-      const { bundles } = await api('/bundles?q=' + encodeURIComponent(query));
-      if (!bundles.length) {
-        box.innerHTML = `
-          <div class="polaris-empty-state">
-            <p style="font-weight:600;font-size:14px;margin-bottom:6px;">No bundles found yet</p>
-            <p style="margin-bottom:14px;">Create combo bundles or bulk multi-packs to increase your store's Average Order Value (AOV).</p>
-            <button class="polaris-btn polaris-btn-primary" onclick="window.pmOpenBundleModal('combo')">＋ Create Your First Bundle</button>
-          </div>
-        `;
-        return;
-      }
-      box.innerHTML = `
-        <div style="overflow-x:auto;">
-          <table class="polaris-table">
-            <thead>
-              <tr><th>BUNDLE PRODUCT</th><th>BUNDLE PRICE</th><th>REGULAR / COMPARE</th><th>STATUS</th><th>TAGS</th><th>SHOPIFY ADMIN</th></tr>
-            </thead>
-            <tbody>
-              ${bundles.map(b => `
-                <tr>
-                  <td>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      ${b.image ? `<img src="${esc(b.image)}" class="polaris-product-thumb" alt="">` : '<div class="polaris-product-thumb"></div>'}
-                      <div>
-                        <strong>${esc(b.title)}</strong>
-                        <div class="polaris-row-meta">${esc(b.handle)}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td><strong>$${esc(b.price)}</strong></td>
-                  <td>${b.compare_at_price ? `<strike>$${esc(b.compare_at_price)}</strike> <span class="polaris-badge polaris-badge-success">Save $${(Number(b.compare_at_price) - Number(b.price)).toFixed(2)}</span>` : '—'}</td>
-                  <td>${statusBadge(b.status)}</td>
-                  <td>${(b.tags || []).slice(0, 3).map(t => `<span class="polaris-badge polaris-badge-neutral" style="margin-right:3px;">${esc(t)}</span>`).join('')}</td>
-                  <td><a href="${esc(b.admin_url)}" target="_blank" class="polaris-btn polaris-btn-plain">Open in Admin ↗</a></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    } catch (e) {
-      box.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
-    }
-  }
-
-  function selectProduct(id, checked) {
-    if (checked) {
-      if (selected.size >= 250) {
-        toast('Select up to 250 products per campaign.');
-        return false;
-      }
-      const p = currentProducts.find(x => x.id === id);
-      if (p) selected.set(id, p);
-    } else {
-      selected.delete(id);
-    }
-    $('#selected-summary').textContent = `${selected.size} product${selected.size === 1 ? '' : 's'} selected`;
-    return true;
-  }
-
-  function renderPickerProducts(products) {
-    currentProducts = products;
-    const box = $('#product-results');
-    box.innerHTML = products.length ? products.map(p => `
-      <label class="polaris-product-item">
-        <input type="checkbox" data-product-id="${esc(p.id)}" ${selected.has(p.id) ? 'checked' : ''}>
-        ${p.image ? `<img src="${esc(p.image)}" class="polaris-product-thumb" alt="">` : '<div class="polaris-product-thumb"></div>'}
-        <div style="flex:1;">
-          <strong>${esc(p.title)}</strong>
-          <div class="polaris-row-meta">$${esc(p.price)} · ${esc(p.status)}</div>
-        </div>
-      </label>
-    `).join('') : '<div class="polaris-empty-picker">No products found.</div>';
-
-    $$('[data-product-id]').forEach(cb => {
-      cb.onchange = () => {
-        if (!selectProduct(cb.dataset.productId, cb.checked)) cb.checked = false;
-      };
-    });
-  }
-
-  async function searchProducts() {
-    const box = $('#product-results');
-    box.innerHTML = '<div class="polaris-empty-picker">Searching Shopify products…</div>';
-    try {
-      const q = $('#product-search')?.value || '';
-      const { products } = await api('/products?q=' + encodeURIComponent(q));
-      renderPickerProducts(products);
-    } catch (e) {
-      box.innerHTML = '<div class="polaris-empty-picker">' + esc(e.message) + '</div>';
-    }
-  }
-
-  async function loadCollections() {
-    const sel = $('#collection-select');
-    sel.innerHTML = '<option value="">Loading store collections…</option>';
-    try {
-      const { collections } = await api('/collections');
-      currentCollections = collections;
-      sel.innerHTML = collections.length ? `
-        <option value="">Select a collection...</option>
-        ${collections.map(c => `<option value="${esc(c.id)}">${esc(c.title)} (${c.products_count} products)</option>`).join('')}
-      ` : '<option value="">No collections found in store.</option>';
-    } catch (e) {
-      sel.innerHTML = '<option value="">Failed to load collections.</option>';
-    }
-  }
-
-  async function loadCollectionProducts() {
-    const colId = $('#collection-select')?.value;
-    if (!colId) {
-      toast('Please choose a collection first.');
-      return;
-    }
-    const box = $('#product-results');
-    box.innerHTML = '<div class="polaris-empty-picker">Loading collection products…</div>';
-    try {
-      const { products } = await api('/products?collection_id=' + encodeURIComponent(colId));
-      renderPickerProducts(products);
-    } catch (e) {
-      box.innerHTML = '<div class="polaris-empty-picker">' + esc(e.message) + '</div>';
-    }
-  }
-
-  function setDefaultDates() {
-    let zone = 'UTC';
-    try {
-      zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-    } catch (e) {}
-
-    const sel = $('#timezone');
-    if (sel) {
-      sel.innerHTML = '';
-      const timezones = [
-        zone,
-        'UTC',
-        'Asia/Kolkata',
-        'Asia/Calcutta',
-        'Asia/Dubai',
-        'Asia/Singapore',
-        'Asia/Tokyo',
-        'Europe/London',
-        'Europe/Paris',
-        'Europe/Berlin',
-        'America/New_York',
-        'America/Chicago',
-        'America/Denver',
-        'America/Los_Angeles',
-        'America/Toronto',
-        'Australia/Sydney',
-        'Pacific/Auckland'
-      ].filter((v, i, a) => v && a.indexOf(v) === i);
-
-      timezones.forEach(z => {
-        let o = document.createElement('option');
-        o.value = z;
-        o.textContent = z + (z === zone ? ' (Detected Store Local)' : '');
-        if (z === zone) o.selected = true;
-        sel.append(o);
-      });
-    }
-
-    let start = new Date(Date.now() + 3600_000);
-    let end = new Date(Date.now() + 48 * 3600_000);
-    function localIso(d) {
-      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    }
-    if ($('#starts-at')) $('#starts-at').value = localIso(start);
-    if ($('#ends-at')) $('#ends-at').value = localIso(end);
-  }
-
-  function openCreate() {
-    selected.clear();
-    $('#selected-summary').textContent = '0 products selected';
-    $('#product-results').innerHTML = '<div class="polaris-empty-picker">Search your catalog or select a collection.</div>';
-    $('#form-error').classList.add('hidden');
-    $('#campaign-dialog').showModal();
-    setDefaultDates();
-    if (selectionMode === 'collections') loadCollections();
-  }
-
-  function openCreateWithProduct(p) {
-    openCreate();
-    if (p) {
-      selected.set(p.id, p);
-      renderPickerProducts([p]);
-      $('#selected-summary').textContent = '1 product selected';
-    }
-  }
-
-  function openCreateWithProducts(prods) {
-    openCreate();
-    if (prods && prods.length) {
-      prods.forEach(p => selected.set(p.id, p));
-      renderPickerProducts(prods);
-      $('#selected-summary').textContent = `${selected.size} products selected`;
-    }
-  }
-
-  async function openCreateWithCollection(collectionId) {
-    openCreate();
-    selectionMode = 'collections';
-    $('#mode-collections').classList.add('active');
-    $('#mode-products').classList.remove('active');
-    $('#product-search-container').classList.add('hidden');
-    $('#collection-search-container').classList.remove('hidden');
-    await loadCollections();
-    if ($('#collection-select')) {
-      $('#collection-select').value = collectionId;
-      await loadCollectionProducts();
-      $('#select-all-results')?.click();
-    }
-  }
-
-  function openRestore(id, name) {
-    restoreId = id;
-    $('#restore-name').textContent = name;
-    $('#confirm-restore').checked = false;
-    $('#restore-error').classList.add('hidden');
-    $('#restore-dialog').showModal();
-  }
-
-  async function submitRestore() {
-    if (!$('#confirm-restore').checked) {
-      $('#restore-error').textContent = 'Please confirm that you want to restore now.';
-      $('#restore-error').classList.remove('hidden');
-      return;
-    }
-    let btn = $('#confirm-restore-button');
-    btn.disabled = true;
-    try {
-      const d = await api(`/campaigns/${restoreId}/restore`, { method: 'POST', body: '{}' });
-      $('#restore-dialog').close();
-      toast(d.message || 'Rollback queued.');
-      await loadDashboard();
-    } catch (e) {
-      $('#restore-error').textContent = e.message;
-      $('#restore-error').classList.remove('hidden');
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  async function createCampaign(e) {
-    e.preventDefault();
-    const err = $('#form-error');
-    err.classList.add('hidden');
-
-    if (!selected.size) {
-      err.textContent = 'Please choose at least one product.';
-      err.classList.remove('hidden');
-      return;
-    }
-
-    const actions = {};
-    if ($('#enable-price').checked) actions.price_percent = Number($('#price-percent').value);
-    if ($('#enable-tag').checked && $('#product-tag').value.trim()) actions.add_tag = $('#product-tag').value.trim();
-    if ($('#enable-description').checked && $('#description-prefix').value.trim()) actions.description_prefix = $('#description-prefix').value.trim();
-
-    if (!Object.keys(actions).length) {
-      err.textContent = 'Please select at least one change to apply.';
-      err.classList.remove('hidden');
-      return;
-    }
-
-    const payload = {
-      name: $('#campaign-name').value.trim(),
-      product_ids: [...selected.keys()],
-      actions,
-      timezone: $('#timezone').value,
-      starts_at: $('#starts-at').value,
-      ends_at: $('#ends-at').value
-    };
-
-    const btn = $('#schedule-button');
-    btn.disabled = true;
-    btn.textContent = 'Scheduling…';
-
-    try {
-      await api('/campaigns', { method: 'POST', body: JSON.stringify(payload) });
-      $('#campaign-dialog').close();
-      toast('Campaign scheduled with snapshot safeguards.');
-      await loadDashboard();
-      setPage('campaigns');
-    } catch (e) {
-      err.textContent = e.message;
-      err.classList.remove('hidden');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Review & Schedule';
-    }
-  }
-
-  // --- BUNDLE CREATOR LOGIC ---
-  function updateBundlePreview() {
-    let totalVal = 0;
-    bundleSelected.forEach(p => {
-      totalVal += Number(p.price || 0);
-    });
-
-    $('#bundle-preview-orig').textContent = '$' + totalVal.toFixed(2);
-
-    let bundlePrice = totalVal;
-    const type = $('#bundle-pricing-type')?.value || 'percentage';
-
-    if (type === 'percentage') {
-      const pct = Number($('#bundle-discount-pct')?.value || 0);
-      bundlePrice = Math.max(0.01, totalVal * (1 - pct / 100));
-    } else if (type === 'fixed_price') {
-      bundlePrice = Number($('#bundle-fixed-price')?.value || totalVal);
-    } else if (type === 'fixed_discount') {
-      const off = Number($('#bundle-fixed-discount')?.value || 0);
-      bundlePrice = Math.max(0.01, totalVal - off);
-    }
-
-    $('#bundle-preview-price').textContent = '$' + bundlePrice.toFixed(2);
-
-    const savings = Math.max(0, totalVal - bundlePrice);
-    const savingsPct = totalVal > 0 ? Math.round((savings / totalVal) * 100) : 0;
-    $('#bundle-preview-save').textContent = `$${savings.toFixed(2)} (${savingsPct}% off)`;
-
-    // Render Compact Cart Items List
-    const chipsBox = $('#bundle-selected-chips');
-    if (chipsBox) {
-      if (!bundleSelected.size) {
-        chipsBox.innerHTML = '<div style="font-size:12px;color:#6d7175;padding:6px 0;">No products selected yet. Search below to add items to this bundle.</div>';
-      } else {
-        chipsBox.innerHTML = `
-          <div style="display:flex;flex-direction:column;gap:6px;width:100%;">
-            ${[...bundleSelected.values()].map(p => `
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 10px;background:#f6f6f7;border:1px solid #e1e3e5;border-radius:6px;">
-                <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
-                  ${p.image ? `<img src="${esc(p.image)}" style="width:32px;height:32px;min-width:32px;max-width:32px;max-height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;" alt="">` : '<div style="width:32px;height:32px;min-width:32px;max-width:32px;max-height:32px;background:#ddd;border-radius:4px;flex-shrink:0;"></div>'}
-                  <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                    <div style="font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(p.title)}</div>
-                    <div style="font-size:11px;color:#6d7175;">$${esc(p.price)}</div>
-                  </div>
-                </div>
-                <button type="button" class="polaris-btn polaris-btn-plain" data-remove-bundle-id="${esc(p.id)}" style="color:#d72c0d;font-size:16px;padding:2px 6px;line-height:1;" title="Remove from bundle">×</button>
-              </div>
-            `).join('')}
-          </div>
-        `;
-
-        $$('[data-remove-bundle-id]').forEach(b => {
-          b.onclick = () => {
-            bundleSelected.delete(b.dataset.removeBundleId);
-            updateBundlePreview();
-          };
-        });
-      }
-    }
-  }
-
-  function openBundleModal(mode = 'combo', initialProducts = [], suggestedTitle = '') {
-    bundleDialogMode = mode;
-    $('#bundle-dialog-mode-combo').classList.toggle('active', mode === 'combo');
-    $('#bundle-dialog-mode-multipack').classList.toggle('active', mode === 'multipack');
-    $('#bundle-mode-combo-view').classList.toggle('hidden', mode !== 'combo');
-    $('#bundle-mode-multipack-view').classList.toggle('hidden', mode !== 'multipack');
-
-    bundleSelected.clear();
-    if (initialProducts && initialProducts.length) {
-      initialProducts.forEach(p => bundleSelected.set(p.id, p));
-    }
-
-    if (suggestedTitle) {
-      $('#bundle-title').value = suggestedTitle;
-    } else if (bundleSelected.size > 0) {
-      const names = [...bundleSelected.values()].map(p => p.title).slice(0, 2).join(' & ');
-      $('#bundle-title').value = names + (bundleSelected.size > 2 ? ' + More Bundle' : ' Value Bundle');
-    } else {
-      $('#bundle-title').value = 'Special Value Bundle';
-    }
-
-    $('#bundle-error').classList.add('hidden');
-    updateBundlePreview();
-    $('#bundle-dialog').showModal();
-  }
-  window.pmOpenBundleModal = openBundleModal;
-
-  async function searchBundleProductsPicker() {
-    const box = $('#bundle-picker-results');
-    box.innerHTML = '<div class="polaris-empty-picker">Searching store products…</div>';
-    try {
-      const q = $('#bundle-product-search')?.value || '';
-      const { products } = await api('/products?q=' + encodeURIComponent(q));
-      box.innerHTML = products.length ? products.map(p => `
-        <label class="polaris-product-item">
-          <input type="checkbox" data-bundle-picker-id="${esc(p.id)}" ${bundleSelected.has(p.id) ? 'checked' : ''}>
-          ${p.image ? `<img src="${esc(p.image)}" class="polaris-product-thumb" alt="">` : '<div class="polaris-product-thumb"></div>'}
-          <div style="flex:1;">
-            <strong>${esc(p.title)}</strong>
-            <div class="polaris-row-meta">$${esc(p.price)} · ${esc(p.status)}</div>
-          </div>
-        </label>
-      `).join('') : '<div class="polaris-empty-picker">No matching products found.</div>';
-
-      $$('[data-bundle-picker-id]').forEach(cb => {
-        cb.onchange = () => {
-          const p = products.find(x => x.id === cb.dataset.bundlePickerId);
-          if (cb.checked) {
-            if (p) bundleSelected.set(p.id, p);
-          } else {
-            bundleSelected.delete(cb.dataset.bundlePickerId);
-          }
-          updateBundlePreview();
-        };
-      });
-    } catch (e) {
-      box.innerHTML = '<div class="polaris-empty-picker">' + esc(e.message) + '</div>';
-    }
-  }
-
-  async function submitBundleCreation(e) {
-    e.preventDefault();
-    const err = $('#bundle-error');
-    err.classList.add('hidden');
-
-    if (bundleDialogMode === 'combo') {
-      if (bundleSelected.size < 1) {
-        err.textContent = 'Please select at least 1 product to include in the bundle.';
-        err.classList.remove('hidden');
-        return;
-      }
-
-      const pricingType = $('#bundle-pricing-type').value;
-      const payload = {
-        title: $('#bundle-title').value.trim(),
-        product_ids: [...bundleSelected.keys()],
-        pricing_type: pricingType,
-        status: $('#bundle-status').value,
-        custom_description: $('#bundle-custom-desc').value.trim(),
-        tags: $('#bundle-tags').value.trim()
-      };
-
-      if (pricingType === 'percentage') {
-        const pct = Number($('#bundle-discount-pct').value);
-        if (isNaN(pct) || pct < 0 || pct > 99) {
-          err.textContent = 'Please enter a valid discount percentage (0-99%).';
-          err.classList.remove('hidden');
-          return;
-        }
-        payload.discount_percent = pct;
-      } else if (pricingType === 'fixed_price') {
-        const fp = Number($('#bundle-fixed-price').value);
-        if (isNaN(fp) || fp <= 0) {
-          err.textContent = 'Please enter a valid bundle price greater than $0.';
-          err.classList.remove('hidden');
-          return;
-        }
-        payload.fixed_price = fp;
-      } else if (pricingType === 'fixed_discount') {
-        const fd = Number($('#bundle-fixed-discount').value);
-        if (isNaN(fd) || fd <= 0) {
-          err.textContent = 'Please enter a valid discount amount greater than $0.';
-          err.classList.remove('hidden');
-          return;
-        }
-        payload.fixed_discount = fd;
-      }
-
-      const btn = $('#create-bundle-submit-btn');
-      btn.disabled = true;
-      btn.textContent = 'Creating in Shopify…';
-
-      try {
-        const res = await api('/bundles', { method: 'POST', body: JSON.stringify(payload) });
-        $('#bundle-dialog').close();
-        toast(res.message || 'Bundle product created successfully!');
-        setPage('bundles');
-      } catch (e) {
-        err.textContent = e.message;
-        err.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Create Bundle in Shopify';
-      }
-    } else {
-      // Multipack mode
-      if (bundleSelected.size < 1) {
-        err.textContent = 'Please choose at least 1 product to generate bulk multi-packs for.';
-        err.classList.remove('hidden');
-        return;
-      }
-
-      const payload = {
-        product_ids: [...bundleSelected.keys()],
-        pack_size: Number($('#multipack-size').value),
-        discount_percent: Number($('#multipack-discount-pct').value),
-        status: $('#multipack-status').value,
-        tag: $('#multipack-tag').value.trim()
-      };
-
-      const btn = $('#create-bundle-submit-btn');
-      btn.disabled = true;
-      btn.textContent = 'Generating Multi-Packs…';
-
-      try {
-        const res = await api('/bundles/bulk-multipack', { method: 'POST', body: JSON.stringify(payload) });
-        $('#bundle-dialog').close();
-        toast(res.message || `Created ${res.count} multi-pack bundles!`);
-        setPage('bundles');
-      } catch (e) {
-        err.textContent = e.message;
-        err.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Create Bundle in Shopify';
-      }
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    $('#new-campaign').onclick = openCreate;
-    $('#campaign-form').addEventListener('submit', createCampaign);
-
-    // Search and Picker Controls for Campaign Scheduler
-    $('#search-products').onclick = searchProducts;
-    $('#product-search').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); searchProducts(); } };
-    $('#product-search').oninput = () => {
-      clearTimeout(productTimer);
-      productTimer = setTimeout(searchProducts, 450);
-    };
-
-    // Mode Toggle (Products vs Collections)
-    $('#mode-products').onclick = () => {
-      selectionMode = 'products';
-      $('#mode-products').classList.add('active');
-      $('#mode-collections').classList.remove('active');
-      $('#product-search-container').classList.remove('hidden');
-      $('#collection-search-container').classList.add('hidden');
-    };
-
-    $('#mode-collections').onclick = () => {
-      selectionMode = 'collections';
-      $('#mode-collections').classList.add('active');
-      $('#mode-products').classList.remove('active');
-      $('#product-search-container').classList.add('hidden');
-      $('#collection-search-container').classList.remove('hidden');
-      loadCollections();
-    };
-
-    $('#load-collection-products').onclick = loadCollectionProducts;
-    $('#collection-select').onchange = loadCollectionProducts;
-
-    $('#select-all-results').onclick = () => {
-      $$('[data-product-id]').forEach(cb => {
-        cb.checked = true;
-        selectProduct(cb.dataset.productId, true);
-      });
-    };
-
-    // Bundle Dialog Controls
-    $('#bundle-dialog-mode-combo').onclick = () => openBundleModal('combo', [...bundleSelected.values()]);
-    $('#bundle-dialog-mode-multipack').onclick = () => openBundleModal('multipack', [...bundleSelected.values()]);
-    $('#bundle-form').addEventListener('submit', submitBundleCreation);
-
-    $('#bundle-product-search-btn').onclick = searchBundleProductsPicker;
-    $('#bundle-product-search').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); searchBundleProductsPicker(); } };
-    $('#bundle-product-search').oninput = () => {
-      clearTimeout(bundleProductTimer);
-      bundleProductTimer = setTimeout(searchBundleProductsPicker, 450);
-    };
-
-    $('#bundle-pricing-type').onchange = () => {
-      const v = $('#bundle-pricing-type').value;
-      $('#bundle-pricing-pct-box').classList.toggle('hidden', v !== 'percentage');
-      $('#bundle-pricing-fixed-price-box').classList.toggle('hidden', v !== 'fixed_price');
-      $('#bundle-pricing-fixed-discount-box').classList.toggle('hidden', v !== 'fixed_discount');
-      updateBundlePreview();
-    };
-
-    $('#bundle-discount-pct').oninput = updateBundlePreview;
-    $('#bundle-fixed-price').oninput = updateBundlePreview;
-    $('#bundle-fixed-discount').oninput = updateBundlePreview;
-
-    $('#confirm-restore-button').onclick = submitRestore;
-
-    $$('[data-close]').forEach(b => b.onclick = () => $('#' + b.dataset.close)?.close());
-    $$('.polaris-tab-item').forEach(b => b.onclick = () => setPage(b.dataset.page));
-    $$('[data-go]').forEach(b => b.onclick = () => setPage(b.dataset.go));
-
-    $$('.polaris-pill-filter').forEach(b => b.onclick = () => {
-      activeFilter = b.dataset.filter;
-      $$('.polaris-pill-filter').forEach(x => x.classList.toggle('selected', x === b));
-      renderCampaigns();
-    });
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialPage = urlParams.get('page') || 'overview';
-    if (urlParams.get('subscribed')) {
-      toast('Pro subscription updated successfully!');
-    }
-    setPage(initialPage);
-    loadDashboard();
-  });
-})();
-</script>
+<script src="/app.js"></script>
 </body>
 </html>
