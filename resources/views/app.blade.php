@@ -7,7 +7,7 @@
 <meta name="shop-domain" content="{{ $shop }}">
 <title>SaleSnap</title>
 <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
-<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/app.css?v={{ time() }}">
 
 <style>
 :root {
@@ -806,7 +806,7 @@ body {
 </head>
 <body>
 <!-- App Bridge Native Navigation Menu (Renders in Shopify Admin app nav extension) -->
-<ui-nav-menu style="display:none;">
+<ui-nav-menu>
   <a href="/app" rel="home">Overview</a>
   <a href="/app?page=campaigns">Campaigns</a>
   <a href="/app?page=products">Products &amp; Collections</a>
@@ -1412,6 +1412,6 @@ body {
 
 <div id="toast" class="polaris-toast" role="status"></div>
 
-<script src="/app.js"></script>
+<script src="/app.js?v={{ time() }}"></script>
 </body>
 </html>
