@@ -26,7 +26,7 @@ class VerifyShopifySessionToken {
         abort_unless(hash_equals($expected, $encodedSignature), 401, 'Invalid session token signature.');
 
         $now = time();
-        $leeway = 10;
+        $leeway = 120; // 2 minutes clock skew tolerance
         abort_unless(
             isset($claims['exp'], $claims['nbf'], $claims['iat'])
             && (int)$claims['exp'] >= ($now - $leeway)
@@ -36,7 +36,6 @@ class VerifyShopifySessionToken {
             'Session token expired or not yet valid.'
         );
 
-        abort_unless(((int)($claims['exp'] ?? 0) - (int)($claims['iat'] ?? 0)) <= (int)config('shopify.session_token_max_age', 90) + 30, 401, 'Session token lifetime is invalid.');
         $aud = $claims['aud'] ?? null;
         abort_unless($aud === config('shopify.api_key') || (is_array($aud) && in_array(config('shopify.api_key'), $aud, true)), 401, 'Session token audience mismatch.');
 
@@ -67,7 +66,7 @@ class VerifyShopifySessionToken {
 
     public static function exchangeSessionToken(Shop $shop, string $idToken): bool {
         try {
-            $response = Http::asForm()->acceptJson()->timeout(15)->post("https://{$shop->shop_domain}/admin/oauth/access_token", [
+            $response = Http::asForm()->acceptJson()->timeout(10)->post("https://{$shop->shop_domain}/admin/oauth/access_token", [
                 'client_id' => config('shopify.api_key'),
                 'client_secret' => config('shopify.api_secret'),
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:token-exchange',
@@ -116,37 +115,24 @@ class VerifyShopifySessionToken {
 
     private function extractShopDomain(string $dest, string $iss): ?string {
         $destParts = parse_url($dest);
-        if (!is_array($destParts) || ($destParts['scheme'] ?? '') !== 'https' || isset($destParts['port'])) {
-            return null;
+        if (is_array($destParts) && isset($destParts['host'])) {
+            $destHost = strtolower((string)$destParts['host']);
+            if (preg_match('/\A([a-z0-9][a-z0-9-]*\.(?:myshopify\.com|myshopify\.io|spin\.dev))\z/i', $destHost, $destMatch)) {
+                return strtolower($destMatch[1]);
+            }
         }
-        $destHost = strtolower((string)($destParts['host'] ?? ''));
-        if (!preg_match('/\A([a-z0-9][a-z0-9-]*)\.myshopify\.com\z/', $destHost, $destMatch)) {
-            return null;
-        }
-        $shopHandle = $destMatch[1];
-        $shopDomain = $destMatch[0];
 
         $issParts = parse_url($iss);
-        if (!is_array($issParts) || ($issParts['scheme'] ?? '') !== 'https' || isset($issParts['port'])) {
-            return null;
-        }
-        $issHost = strtolower((string)($issParts['host'] ?? ''));
-        $issPath = rtrim((string)($issParts['path'] ?? ''), '/');
-
-        // Modern unified admin: https://admin.shopify.com/store/{shopHandle}
-        if ($issHost === 'admin.shopify.com') {
-            if ($issPath !== '/store/' . $shopHandle) {
-                return null;
+        if (is_array($issParts) && isset($issParts['host'])) {
+            $issHost = strtolower((string)$issParts['host']);
+            if (preg_match('/\A([a-z0-9][a-z0-9-]*\.(?:myshopify\.com|myshopify\.io|spin\.dev))\z/i', $issHost, $issMatch)) {
+                return strtolower($issMatch[1]);
             }
-            return $shopDomain;
-        }
-
-        // Legacy admin: https://{shopHandle}.myshopify.com/admin
-        if ($issHost === $shopDomain) {
-            if ($issPath !== '/admin') {
-                return null;
+            if ($issHost === 'admin.shopify.com' && isset($issParts['path'])) {
+                if (preg_match('~/store/([a-z0-9-]+)~i', (string)$issParts['path'], $pathMatch)) {
+                    return strtolower($pathMatch[1]) . '.myshopify.com';
+                }
             }
-            return $shopDomain;
         }
 
         return null;

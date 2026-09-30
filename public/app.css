@@ -22,6 +22,9 @@
 }
 
 * { box-sizing: border-box; }
+ui-nav-menu {
+  display: none !important;
+}
 body {
   margin: 0;
   background-color: var(--p-color-bg);
@@ -80,10 +83,15 @@ body {
 /* In-App Tabs */
 .polaris-tabs-bar {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   border-bottom: 1px solid var(--p-color-border);
   margin-bottom: 20px;
   overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.polaris-tabs-bar::-webkit-scrollbar {
+  display: none;
 }
 .polaris-tab-item {
   background: none;
@@ -96,14 +104,17 @@ body {
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
+  border-radius: 4px 4px 0 0;
 }
 .polaris-tab-item:hover {
   color: var(--p-color-text);
+  background: rgba(0, 0, 0, 0.02);
 }
 .polaris-tab-item.active {
   color: #000;
   font-weight: 600;
   border-bottom-color: var(--p-color-primary);
+  background: transparent;
 }
 
 /* Buttons */

@@ -37,6 +37,9 @@
 }
 
 * { box-sizing: border-box; }
+ui-nav-menu {
+  display: none !important;
+}
 img {
   max-width: 100%;
   height: auto;
@@ -96,10 +99,15 @@ body {
 /* Tabs */
 .polaris-tabs-bar {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   border-bottom: 1px solid var(--p-border);
   margin-bottom: 20px;
   overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.polaris-tabs-bar::-webkit-scrollbar {
+  display: none;
 }
 .polaris-tab-item {
   background: none;
@@ -112,14 +120,17 @@ body {
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
+  border-radius: 4px 4px 0 0;
 }
 .polaris-tab-item:hover {
   color: var(--p-text);
+  background: rgba(0, 0, 0, 0.02);
 }
 .polaris-tab-item.active {
   color: #000;
   font-weight: 600;
   border-bottom-color: var(--p-primary);
+  background: transparent;
 }
 
 /* Buttons */
@@ -794,8 +805,8 @@ body {
 </style>
 </head>
 <body>
-<!-- App Bridge Native Navigation Menu (Renders in Shopify Admin top bar) -->
-<ui-nav-menu>
+<!-- App Bridge Native Navigation Menu (Renders in Shopify Admin app nav extension) -->
+<ui-nav-menu style="display:none;">
   <a href="/app" rel="home">Overview</a>
   <a href="/app?page=campaigns">Campaigns</a>
   <a href="/app?page=products">Products &amp; Collections</a>
@@ -825,7 +836,7 @@ body {
       </div>
     </div>
 
-    <!-- Polaris In-App Navigation Tabs -->
+    <!-- Polaris In-App Navigation Tabs (Core Feature Navigation) -->
     <div class="polaris-tabs-bar">
       <button class="polaris-tab-item active" data-page="overview">Overview</button>
       <button class="polaris-tab-item" data-page="campaigns">Campaigns</button>
@@ -834,8 +845,6 @@ body {
       <button class="polaris-tab-item" data-page="themes">Theme &amp; Countdown</button>
       <button class="polaris-tab-item" data-page="snapshots">Snapshots &amp; Restores</button>
       <button class="polaris-tab-item" data-page="activity">Activity Log</button>
-      <button class="polaris-tab-item" data-page="billing">Billing &amp; Plans</button>
-      <button class="polaris-tab-item" data-page="settings">Settings</button>
     </div>
 
     <!-- Alerts Banner -->

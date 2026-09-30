@@ -56,22 +56,52 @@
 
   async function token() {
     if (!window.shopify || typeof window.shopify.idToken !== 'function') {
-      throw new Error('Open SaleSnap from Shopify Admin to securely load your store.');
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        if (window.shopify && typeof window.shopify.idToken === 'function') break;
+      }
     }
-    return await window.shopify.idToken();
+    if (!window.shopify || typeof window.shopify.idToken !== 'function') {
+      return '';
+    }
+    try {
+      const tokenPromise = window.shopify.idToken();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Shopify session token request timed out.')), 6000)
+      );
+      return await Promise.race([tokenPromise, timeoutPromise]);
+    } catch (err) {
+      console.warn('Session token retrieval notice:', err);
+      return '';
+    }
   }
 
   async function api(path, options = {}) {
-    const idToken = await token();
-    const res = await fetch('/api' + path, {
-      ...options,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + idToken,
-        ...(options.headers || {})
-      }
-    });
+    let idToken = '';
+    try {
+      idToken = await token();
+    } catch (e) {
+      console.warn('Could not retrieve session token:', e);
+    }
+
+    const headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    };
+    if (idToken) {
+      headers['Authorization'] = 'Bearer ' + idToken;
+    }
+
+    let res;
+    try {
+      res = await fetch('/api' + path, {
+        ...options,
+        headers
+      });
+    } catch (netErr) {
+      throw new Error('Network error connecting to app server: ' + (netErr.message || 'Check connection.'));
+    }
 
     let data = {};
     try { data = await res.json(); } catch {}
@@ -87,7 +117,7 @@
         } else {
           try { window.top.location.href = authUrl; } catch (e) { window.location.href = authUrl; }
         }
-        throw new Error('Reauthorizing this store with Shopify…');
+        throw new Error('Reauthorizing store with Shopify… Redirecting to app permissions screen.');
       }
       let msg = data.message || 'Request failed (' + res.status + ').';
       if (data.errors) msg = Object.values(data.errors).flat().join(' ');
@@ -201,15 +231,20 @@
     try {
       let d = await api('/dashboard');
       dashboard = d;
-      $('#stat-live').textContent = d.stats.live;
-      $('#stat-scheduled').textContent = d.stats.scheduled;
-      $('#stat-protected').textContent = d.stats.products_protected;
-      $('#stat-rollbacks').textContent = d.stats.rollbacks;
+      $('#stat-live').textContent = d.stats?.live ?? 0;
+      $('#stat-scheduled').textContent = d.stats?.scheduled ?? 0;
+      $('#stat-protected').textContent = d.stats?.products_protected ?? 0;
+      $('#stat-rollbacks').textContent = d.stats?.rollbacks ?? 0;
       renderCampaigns();
       $('#error-banner').classList.add('hidden');
     } catch (e) {
+      console.error('Failed to load dashboard:', e);
       banner(e.message);
-      $('#campaign-list').innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
+      $('#stat-live').textContent = '0';
+      $('#stat-scheduled').textContent = '0';
+      $('#stat-protected').textContent = '0';
+      $('#stat-rollbacks').textContent = '0';
+      $('#campaign-list').innerHTML = '<div class="polaris-empty-state" style="color:#d72c0d;"><strong>Could not load store campaigns:</strong><br>' + esc(e.message) + '<br><br><button type="button" class="polaris-btn" onclick="location.reload()">↺ Retry</button></div>';
     }
   }
 
@@ -1974,6 +2009,11 @@
       activeFilter = b.dataset.filter;
       $$('.polaris-pill-filter').forEach(x => x.classList.toggle('selected', x === b));
       renderCampaigns();
+    });
+
+    window.addEventListener('popstate', () => {
+      const p = new URLSearchParams(window.location.search).get('page') || 'overview';
+      setPage(p);
     });
 
     const urlParams = new URLSearchParams(window.location.search);
