@@ -34,6 +34,30 @@
     settings: ['Settings', 'Customize discount guardrails, price rounding, default tags, and countdown widget styling.']
   };
 
+  window.pmOpenBundleModal = (mode = 'combo', initialProducts = [], suggestedTitle = '') => {
+    if (typeof openBundleModal === 'function') {
+      return openBundleModal(mode, initialProducts, suggestedTitle);
+    }
+    const d = document.getElementById('bundle-dialog');
+    if (d && typeof d.showModal === 'function') d.showModal();
+  };
+
+  window.pmOpenThemePublishModal = (campaignId = null) => {
+    if (typeof openThemePublishModal === 'function') {
+      return openThemePublishModal(campaignId);
+    }
+    const d = document.getElementById('theme-publish-dialog');
+    if (d && typeof d.showModal === 'function') d.showModal();
+  };
+
+  window.pmOpenCampaignDetails = (campaignId) => {
+    if (typeof openCampaignDetails === 'function') {
+      return openCampaignDetails(campaignId);
+    }
+    const d = document.getElementById('campaign-details-dialog');
+    if (d && typeof d.showModal === 'function') d.showModal();
+  };
+
   function esc(v) {
     return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
@@ -1938,6 +1962,12 @@
   document.addEventListener('DOMContentLoaded', () => {
     $('#new-campaign').onclick = openCreate;
     $('#campaign-form').addEventListener('submit', createCampaign);
+
+    const btnTheme = $('#header-theme-btn');
+    if (btnTheme) btnTheme.onclick = () => openThemePublishModal();
+
+    const btnBundle = $('#header-bundle-btn');
+    if (btnBundle) btnBundle.onclick = () => openBundleModal('combo');
 
     // Search and Picker Controls for Campaign Scheduler
     $('#search-products').onclick = searchProducts;

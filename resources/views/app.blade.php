@@ -827,9 +827,9 @@ body {
         <div class="polaris-title-row">
           <h1 id="page-title" class="polaris-title">SaleSnap</h1>
           <div class="polaris-header-actions">
-            <button class="polaris-btn" onclick="window.pmOpenThemePublishModal()">⚡ Theme &amp; Countdown</button>
-            <button class="polaris-btn" onclick="window.pmOpenBundleModal('combo')">🎁 Create Bundle</button>
-            <button class="polaris-btn polaris-btn-primary" id="new-campaign">＋ Create campaign</button>
+            <button type="button" class="polaris-btn" id="header-theme-btn">⚡ Theme &amp; Countdown</button>
+            <button type="button" class="polaris-btn" id="header-bundle-btn">🎁 Create Bundle</button>
+            <button type="button" class="polaris-btn polaris-btn-primary" id="new-campaign">＋ Create campaign</button>
           </div>
         </div>
         <p id="page-desc" class="polaris-subtitle">Schedule flash-sale promotions with automatic pre-change snapshots and safe rollback.</p>

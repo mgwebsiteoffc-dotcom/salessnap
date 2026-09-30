@@ -115,24 +115,39 @@ class VerifyShopifySessionToken {
 
     private function extractShopDomain(string $dest, string $iss): ?string {
         $destParts = parse_url($dest);
-        if (is_array($destParts) && isset($destParts['host'])) {
-            $destHost = strtolower((string)$destParts['host']);
-            if (preg_match('/\A([a-z0-9][a-z0-9-]*\.(?:myshopify\.com|myshopify\.io|spin\.dev))\z/i', $destHost, $destMatch)) {
-                return strtolower($destMatch[1]);
-            }
+        if (!is_array($destParts) || ($destParts['scheme'] ?? '') !== 'https') {
+            return null;
         }
+        $destHost = strtolower((string)($destParts['host'] ?? ''));
+        if (!preg_match('/\A([a-z0-9][a-z0-9-]*)\.(?:myshopify\.com|myshopify\.io|spin\.dev)\z/i', $destHost, $destMatch)) {
+            return null;
+        }
+        $shopHandle = strtolower($destMatch[1]);
+        $shopDomain = strtolower($destMatch[0]);
 
         $issParts = parse_url($iss);
-        if (is_array($issParts) && isset($issParts['host'])) {
-            $issHost = strtolower((string)$issParts['host']);
-            if (preg_match('/\A([a-z0-9][a-z0-9-]*\.(?:myshopify\.com|myshopify\.io|spin\.dev))\z/i', $issHost, $issMatch)) {
-                return strtolower($issMatch[1]);
-            }
-            if ($issHost === 'admin.shopify.com' && isset($issParts['path'])) {
-                if (preg_match('~/store/([a-z0-9-]+)~i', (string)$issParts['path'], $pathMatch)) {
-                    return strtolower($pathMatch[1]) . '.myshopify.com';
+        if (!is_array($issParts) || ($issParts['scheme'] ?? '') !== 'https') {
+            return null;
+        }
+        $issHost = strtolower((string)($issParts['host'] ?? ''));
+        $issPath = rtrim((string)($issParts['path'] ?? ''), '/');
+
+        if ($issHost === 'admin.shopify.com') {
+            if ($issPath !== '' && $issPath !== '/' && $issPath !== '/admin') {
+                if (preg_match('~/store/([a-z0-9-]+)~i', $issPath, $pm)) {
+                    if (strtolower($pm[1]) !== $shopHandle) {
+                        return null;
+                    }
                 }
             }
+            return $shopDomain;
+        }
+
+        if (preg_match('/\A([a-z0-9][a-z0-9-]*)\.(?:myshopify\.com|myshopify\.io|spin\.dev)\z/i', $issHost, $issMatch)) {
+            if (strtolower($issMatch[1]) !== $shopHandle) {
+                return null;
+            }
+            return $shopDomain;
         }
 
         return null;
