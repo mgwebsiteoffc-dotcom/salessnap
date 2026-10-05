@@ -63,6 +63,7 @@ class AuthController {
             'client_id' => config('shopify.api_key'),
             'client_secret' => config('shopify.api_secret'),
             'code' => (string)$request->query('code'),
+            'expiring' => 1,
         ]);
 
         if (!$response->successful() || !$response->json('access_token')) {

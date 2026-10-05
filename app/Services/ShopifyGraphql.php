@@ -14,12 +14,27 @@ class ShopifyGraphql {
         $response = $this->sendQuery($shop, $query, $variables);
 
         if (!$response->successful() && in_array($response->status(), [401, 403], true)) {
-            Log::warning("Shopify GraphQL HTTP {$response->status()} for {$shop->shop_domain}. Body: " . $response->body() . ". Attempting automatic token renewal via session token exchange...");
+            $bodyStr = (string)$response->body();
+            Log::warning("Shopify GraphQL HTTP {$response->status()} for {$shop->shop_domain}. Body: {$bodyStr}. Attempting token renewal...");
             
-            $sessionToken = request()->attributes->get('shopify_session_token') ?: request()->bearerToken();
-            if ($sessionToken && VerifyShopifySessionToken::exchangeSessionToken($shop, $sessionToken)) {
+            $renewed = false;
+            // 1. If it's a legacy non-expiring token deprecation error, migrate directly
+            if (str_contains($bodyStr, 'Non-expiring access tokens') || str_contains($bodyStr, 'offline-access-tokens') || empty($shop->token_expires_at)) {
+                $renewed = VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop);
+            }
+
+            // 2. If not renewed, try session token exchange
+            if (!$renewed) {
+                $sessionToken = request()->attributes->get('shopify_session_token') ?: request()->bearerToken();
+                if ($sessionToken) {
+                    $renewed = VerifyShopifySessionToken::exchangeSessionToken($shop, $sessionToken);
+                }
+            }
+
+            // 3. If renewed, refresh shop model and retry query
+            if ($renewed) {
                 $shop->refresh();
-                Log::info("Retrying Shopify GraphQL query after successful token exchange for {$shop->shop_domain}");
+                Log::info("Retrying Shopify GraphQL query after successful token renewal for {$shop->shop_domain}");
                 $response = $this->sendQuery($shop, $query, $variables);
             }
         }
@@ -561,6 +576,19 @@ GQL;
         ->retry(2, 300, throw: false)
         ->get($url, $query);
 
+        if (!$res->successful() && in_array($res->status(), [401, 403], true)) {
+            $bodyStr = (string)$res->body();
+            if (str_contains($bodyStr, 'Non-expiring access tokens') || str_contains($bodyStr, 'offline-access-tokens') || empty($shop->token_expires_at)) {
+                if (VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop)) {
+                    $shop->refresh();
+                    $res = Http::withHeaders([
+                        'X-Shopify-Access-Token' => (string) $shop->access_token,
+                        'Accept' => 'application/json',
+                    ])->timeout(30)->get($url, $query);
+                }
+            }
+        }
+
         if (!$res->successful()) {
             throw new RuntimeException("Shopify REST GET {$endpoint} failed (HTTP {$res->status()}): " . mb_substr($res->body(), 0, 500));
         }
@@ -579,6 +607,20 @@ GQL;
         ->retry(2, 300, throw: false)
         ->post($url, $data);
 
+        if (!$res->successful() && in_array($res->status(), [401, 403], true)) {
+            $bodyStr = (string)$res->body();
+            if (str_contains($bodyStr, 'Non-expiring access tokens') || str_contains($bodyStr, 'offline-access-tokens') || empty($shop->token_expires_at)) {
+                if (VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop)) {
+                    $shop->refresh();
+                    $res = Http::withHeaders([
+                        'X-Shopify-Access-Token' => (string) $shop->access_token,
+                        'Content-Type' => 'application/json',
+                        'Accept' => 'application/json',
+                    ])->timeout(35)->post($url, $data);
+                }
+            }
+        }
+
         if (!$res->successful()) {
             throw new RuntimeException("Shopify REST POST {$endpoint} failed (HTTP {$res->status()}): " . mb_substr($res->body(), 0, 500));
         }
@@ -596,6 +638,20 @@ GQL;
         ->timeout(30)
         ->retry(2, 300, throw: false)
         ->put($url, $data);
+
+        if (!$res->successful() && in_array($res->status(), [401, 403], true)) {
+            $bodyStr = (string)$res->body();
+            if (str_contains($bodyStr, 'Non-expiring access tokens') || str_contains($bodyStr, 'offline-access-tokens') || empty($shop->token_expires_at)) {
+                if (VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop)) {
+                    $shop->refresh();
+                    $res = Http::withHeaders([
+                        'X-Shopify-Access-Token' => (string) $shop->access_token,
+                        'Content-Type' => 'application/json',
+                        'Accept' => 'application/json',
+                    ])->timeout(30)->put($url, $data);
+                }
+            }
+        }
 
         if (!$res->successful()) {
             throw new RuntimeException("Shopify REST PUT {$endpoint} failed (HTTP {$res->status()}): " . mb_substr($res->body(), 0, 500));
@@ -858,11 +914,12 @@ LIQUID;
             if (!$locked->refresh_token || ($locked->refresh_token_expires_at && $locked->refresh_token_expires_at->isPast())) {
                 throw new RuntimeException('Shopify token expired. Re-open the app in Shopify Admin to refresh authorization.');
             }
-            $r = Http::asJson()->acceptJson()->timeout(15)->post("https://{$locked->shop_domain}/admin/oauth/access_token", [
+            $r = Http::asForm()->acceptJson()->timeout(15)->post("https://{$locked->shop_domain}/admin/oauth/access_token", [
                 'client_id' => config('shopify.api_key'),
                 'client_secret' => config('shopify.api_secret'),
                 'grant_type' => 'refresh_token',
                 'refresh_token' => $locked->refresh_token,
+                'expiring' => 1,
             ]);
             if (!$r->successful() || !$r->json('access_token')) {
                 throw new RuntimeException('Could not refresh the Shopify access token. Re-authorize the app.');

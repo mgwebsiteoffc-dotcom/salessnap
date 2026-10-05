@@ -52,9 +52,10 @@ class VerifyShopifySessionToken {
             ]);
         }
 
-        // If access token is missing, expired, or expiring, perform immediate Token Exchange
-        if (empty($shop->access_token) || ($shop->token_expires_at && $shop->token_expires_at->lte(now()->addMinutes(2)))) {
-            $this->exchangeSessionToken($shop, $jwt);
+        // If access token is missing, not expiring (legacy token), expired, or expiring soon, perform immediate Expiring Token Exchange
+        if (empty($shop->access_token) || empty($shop->token_expires_at) || $shop->token_expires_at->lte(now()->addMinutes(5))) {
+            self::exchangeSessionToken($shop, $jwt);
+            $shop->refresh();
         }
 
         $request->attributes->set('shop', $shop);
@@ -66,13 +67,14 @@ class VerifyShopifySessionToken {
 
     public static function exchangeSessionToken(Shop $shop, string $idToken): bool {
         try {
-            $response = Http::asForm()->acceptJson()->timeout(10)->post("https://{$shop->shop_domain}/admin/oauth/access_token", [
+            $response = Http::asForm()->acceptJson()->timeout(15)->post("https://{$shop->shop_domain}/admin/oauth/access_token", [
                 'client_id' => config('shopify.api_key'),
                 'client_secret' => config('shopify.api_secret'),
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:token-exchange',
                 'subject_token' => $idToken,
                 'subject_token_type' => 'urn:ietf:params:oauth:token-type:id_token',
                 'requested_token_type' => 'urn:shopify:params:oauth:token-type:offline-access-token',
+                'expiring' => 1,
             ]);
 
             if ($response->successful() && $response->json('access_token')) {
@@ -89,7 +91,7 @@ class VerifyShopifySessionToken {
                     'uninstalled_at' => null,
                 ])->save();
 
-                Log::info("Successfully exchanged session token for offline access token for shop: {$shop->shop_domain}");
+                Log::info("Successfully exchanged session token for expiring offline access token for shop: {$shop->shop_domain} (expires in {$expiresIn}s)");
                 return true;
             } else {
                 Log::warning("Shopify token exchange rejected", [
@@ -99,6 +101,47 @@ class VerifyShopifySessionToken {
             }
         } catch (\Throwable $e) {
             Log::error('Shopify token exchange exception: ' . $e->getMessage());
+        }
+        return false;
+    }
+
+    public static function migrateOfflineTokenToExpiring(Shop $shop): bool {
+        if (empty($shop->access_token)) return false;
+        try {
+            $response = Http::asForm()->acceptJson()->timeout(15)->post("https://{$shop->shop_domain}/admin/oauth/access_token", [
+                'client_id' => config('shopify.api_key'),
+                'client_secret' => config('shopify.api_secret'),
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:token-exchange',
+                'subject_token' => (string) $shop->access_token,
+                'subject_token_type' => 'urn:shopify:params:oauth:token-type:offline-access-token',
+                'requested_token_type' => 'urn:shopify:params:oauth:token-type:offline-access-token',
+                'expiring' => 1,
+            ]);
+
+            if ($response->successful() && $response->json('access_token')) {
+                $data = $response->json();
+                $expiresIn = isset($data['expires_in']) ? (int)$data['expires_in'] : null;
+                $refreshTokenExpiresIn = isset($data['refresh_token_expires_in']) ? (int)$data['refresh_token_expires_in'] : null;
+
+                $shop->forceFill([
+                    'access_token' => $data['access_token'],
+                    'refresh_token' => $data['refresh_token'] ?? $shop->refresh_token,
+                    'token_expires_at' => $expiresIn ? now()->addSeconds($expiresIn) : null,
+                    'refresh_token_expires_at' => $refreshTokenExpiresIn ? now()->addSeconds($refreshTokenExpiresIn) : $shop->refresh_token_expires_at,
+                    'granted_scopes' => $data['scope'] ?? $shop->granted_scopes,
+                    'uninstalled_at' => null,
+                ])->save();
+
+                Log::info("Successfully migrated legacy offline token to expiring offline token for shop: {$shop->shop_domain} (expires in {$expiresIn}s)");
+                return true;
+            } else {
+                Log::warning("Direct offline token migration rejected for {$shop->shop_domain}", [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Direct offline token migration exception: ' . $e->getMessage());
         }
         return false;
     }
