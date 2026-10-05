@@ -20,6 +20,6 @@ Route::post('/app/webhooks/shopify', WebhookController::class)->name('shopify.we
 Route::get('/app', AppController::class)->name('app');
 Route::get('/install', InstallRedirectController::class)->name('shopify.install');
 Route::get('/support', SupportController::class)->name('support');
-Route::get('/privacy', fn() => response()->view('legal-placeholder', ['page' => 'privacy']))->name('privacy');
-Route::get('/terms', fn() => response()->view('legal-placeholder', ['page' => 'terms']))->name('terms');
+Route::get('/privacy', fn() => response()->view('privacy'))->name('privacy');
+Route::get('/terms', fn() => response()->view('terms'))->name('terms');
 Route::get('/', MarketingController::class)->name('marketing.home');
