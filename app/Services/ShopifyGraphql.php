@@ -670,16 +670,6 @@ GQL;
         }
         return $res->json() ?? [];
     }
-                    ])->timeout(30)->put($url, $data);
-                }
-            }
-        }
-
-        if (!$res->successful()) {
-            throw new RuntimeException("Shopify REST PUT {$endpoint} failed (HTTP {$res->status()}): " . mb_substr($res->body(), 0, 500));
-        }
-        return $res->json() ?? [];
-    }
 
     public function getThemes(Shop $shop): array {
         $data = $this->restGet($shop, 'themes.json');
