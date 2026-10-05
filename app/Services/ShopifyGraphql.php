@@ -577,15 +577,19 @@ GQL;
         ->get($url, $query);
 
         if (!$res->successful() && in_array($res->status(), [401, 403], true)) {
-            $bodyStr = (string)$res->body();
-            if (str_contains($bodyStr, 'Non-expiring access tokens') || str_contains($bodyStr, 'offline-access-tokens') || empty($shop->token_expires_at)) {
-                if (VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop)) {
-                    $shop->refresh();
-                    $res = Http::withHeaders([
-                        'X-Shopify-Access-Token' => (string) $shop->access_token,
-                        'Accept' => 'application/json',
-                    ])->timeout(30)->get($url, $query);
+            $renewed = VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop);
+            if (!$renewed) {
+                $sessionToken = request()->attributes->get('shopify_session_token') ?: request()->bearerToken();
+                if ($sessionToken) {
+                    $renewed = VerifyShopifySessionToken::exchangeSessionToken($shop, $sessionToken);
                 }
+            }
+            if ($renewed) {
+                $shop->refresh();
+                $res = Http::withHeaders([
+                    'X-Shopify-Access-Token' => (string) $shop->access_token,
+                    'Accept' => 'application/json',
+                ])->timeout(30)->get($url, $query);
             }
         }
 
@@ -608,16 +612,20 @@ GQL;
         ->post($url, $data);
 
         if (!$res->successful() && in_array($res->status(), [401, 403], true)) {
-            $bodyStr = (string)$res->body();
-            if (str_contains($bodyStr, 'Non-expiring access tokens') || str_contains($bodyStr, 'offline-access-tokens') || empty($shop->token_expires_at)) {
-                if (VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop)) {
-                    $shop->refresh();
-                    $res = Http::withHeaders([
-                        'X-Shopify-Access-Token' => (string) $shop->access_token,
-                        'Content-Type' => 'application/json',
-                        'Accept' => 'application/json',
-                    ])->timeout(35)->post($url, $data);
+            $renewed = VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop);
+            if (!$renewed) {
+                $sessionToken = request()->attributes->get('shopify_session_token') ?: request()->bearerToken();
+                if ($sessionToken) {
+                    $renewed = VerifyShopifySessionToken::exchangeSessionToken($shop, $sessionToken);
                 }
+            }
+            if ($renewed) {
+                $shop->refresh();
+                $res = Http::withHeaders([
+                    'X-Shopify-Access-Token' => (string) $shop->access_token,
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ])->timeout(35)->post($url, $data);
             }
         }
 
@@ -640,14 +648,28 @@ GQL;
         ->put($url, $data);
 
         if (!$res->successful() && in_array($res->status(), [401, 403], true)) {
-            $bodyStr = (string)$res->body();
-            if (str_contains($bodyStr, 'Non-expiring access tokens') || str_contains($bodyStr, 'offline-access-tokens') || empty($shop->token_expires_at)) {
-                if (VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop)) {
-                    $shop->refresh();
-                    $res = Http::withHeaders([
-                        'X-Shopify-Access-Token' => (string) $shop->access_token,
-                        'Content-Type' => 'application/json',
-                        'Accept' => 'application/json',
+            $renewed = VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop);
+            if (!$renewed) {
+                $sessionToken = request()->attributes->get('shopify_session_token') ?: request()->bearerToken();
+                if ($sessionToken) {
+                    $renewed = VerifyShopifySessionToken::exchangeSessionToken($shop, $sessionToken);
+                }
+            }
+            if ($renewed) {
+                $shop->refresh();
+                $res = Http::withHeaders([
+                    'X-Shopify-Access-Token' => (string) $shop->access_token,
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ])->timeout(30)->put($url, $data);
+            }
+        }
+
+        if (!$res->successful()) {
+            throw new RuntimeException("Shopify REST PUT {$endpoint} failed (HTTP {$res->status()}): " . mb_substr($res->body(), 0, 500));
+        }
+        return $res->json() ?? [];
+    }
                     ])->timeout(30)->put($url, $data);
                 }
             }

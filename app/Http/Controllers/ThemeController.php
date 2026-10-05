@@ -13,11 +13,12 @@ class ThemeController {
         try {
             $themes = $graphql->getThemes($shop);
         } catch (\Throwable $e) {
-            $isScopeError = str_contains($e->getMessage(), 'read_themes') || str_contains($e->getMessage(), '403');
+            $msg = $e->getMessage();
+            $isScopeError = str_contains($msg, 'read_themes') || str_contains($msg, '403') || str_contains($msg, '401') || str_contains($msg, 'Invalid API key or access token') || str_contains($msg, 're-authorize');
             if ($isScopeError) {
-                Log::info("Store {$shop->shop_domain} has not yet granted read_themes scope; prompt displayed to merchant.");
+                Log::info("Store {$shop->shop_domain} requires theme permissions re-authorization: {$msg}");
             } else {
-                Log::warning("Could not fetch themes for {$shop->shop_domain}: " . $e->getMessage());
+                Log::warning("Could not fetch themes for {$shop->shop_domain}: " . $msg);
             }
 
             return response()->json([
@@ -25,10 +26,11 @@ class ThemeController {
                 'published_theme_id' => $shop->published_theme_id,
                 'active_promo_theme_id' => $shop->active_promo_theme_id,
                 'scope_required' => $isScopeError,
+                'auth_required' => $isScopeError,
                 'reauth_url' => '/auth?shop=' . urlencode($shop->shop_domain),
                 'error' => $isScopeError
-                    ? 'Theme management requires read_themes and write_themes permissions. Please click "Grant Theme Permissions" to enable theme duplication.'
-                    : 'Unable to read themes: ' . $e->getMessage(),
+                    ? 'Theme management requires read_themes and write_themes permissions approved in Shopify. Please click "Grant Theme Permissions" below to enable theme features.'
+                    : 'Unable to read themes: ' . $msg,
             ]);
         }
 
