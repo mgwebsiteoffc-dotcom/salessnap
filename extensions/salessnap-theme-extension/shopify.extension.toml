@@ -1,2 +1,3 @@
-name = "salessnap-theme-extension"
+name = "SaleSnap Theme Extension"
+handle = "salessnap-theme-extension"
 type = "theme"
