@@ -691,32 +691,50 @@ GQL;
             $newName = "[SaleSnap Promo] {$srcName} with Countdown";
         }
 
+        // Create new theme copy in Shopify
         $res = $this->restPost($shop, 'themes.json', [
             'theme' => [
                 'name' => $newName,
-                'src' => "https://{$shop->shop_domain}/admin/api/" . config('shopify.api_version') . "/themes/{$source}.json",
                 'role' => 'unpublished',
             ],
         ]);
 
         $created = $res['theme'] ?? null;
         if (!$created || empty($created['id'])) {
-            $res = $this->restPost($shop, 'themes.json', [
-                'theme' => [
-                    'name' => $newName,
-                    'role' => 'unpublished',
-                ],
-            ]);
-            $created = $res['theme'] ?? [];
+            throw new RuntimeException('Shopify could not create promo theme copy.');
         }
 
-        $createdId = $created['id'] ?? null;
-        if ($createdId && $countdownConfig) {
-            try {
-                $this->injectCountdown($shop, $createdId, $countdownConfig);
-            } catch (\Throwable $e) {
-                Log::warning("Could not inject countdown snippet into new theme {$createdId}: " . $e->getMessage());
+        $createdId = $created['id'];
+
+        // Copy source theme's layout/theme.liquid and inject countdown banner
+        try {
+            $sourceLayout = $this->restGet($shop, "themes/{$source}/assets.json", ['asset[key]' => 'layout/theme.liquid']);
+            $sourceContent = $sourceLayout['asset']['value'] ?? null;
+
+            $snippet = $this->generateCountdownLiquid($countdownConfig ?? [], $shop);
+            $this->restPut($shop, "themes/{$createdId}/assets.json", [
+                'asset' => [
+                    'key' => 'snippets/salessnap-countdown.liquid',
+                    'value' => $snippet,
+                ],
+            ]);
+
+            if ($sourceContent) {
+                if (!str_contains($sourceContent, 'salessnap-countdown')) {
+                    $modified = str_ireplace('<body', "<body\n{% render 'salessnap-countdown' %}", $sourceContent);
+                    if ($modified === $sourceContent) {
+                        $modified = "{% render 'salessnap-countdown' %}\n" . $sourceContent;
+                    }
+                    $this->restPut($shop, "themes/{$createdId}/assets.json", [
+                        'asset' => [
+                            'key' => 'layout/theme.liquid',
+                            'value' => $modified,
+                        ],
+                    ]);
+                }
             }
+        } catch (\Throwable $e) {
+            Log::warning("Could not copy theme layout assets for new theme {$createdId}: " . $e->getMessage());
         }
 
         return [

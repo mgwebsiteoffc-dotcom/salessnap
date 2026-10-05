@@ -3,6 +3,7 @@
   Theme App Extension - App Embed Block (Online Store 2.0)
 {% endcomment %}
 
+{% if block.settings.enable != false %}
 <div id="salessnap-countdown-banner" class="salessnap-countdown-banner" data-ends-at="{{ block.settings.ends_at | default: '2026-12-31T23:59:59Z' }}" style="position: sticky; {% if block.settings.position == 'bottom' %}bottom: 0;{% else %}top: 0;{% endif %} z-index: 2147483640; width: 100%; background: {{ block.settings.bg_color | default: '#111827' }}; color: {{ block.settings.text_color | default: '#ffffff' }}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-bottom: 2px solid {{ block.settings.accent_color | default: '#f59e0b' }}; line-height: 1.4;">
   <div style="max-width: 1200px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
     <div style="display: flex; align-items: center; gap: 12px; min-width: 240px;">
@@ -46,8 +47,41 @@
   </div>
 </div>
 
-{{ 'salessnap-countdown.css' | asset_url | stylesheet_tag }}
-<script src="{{ 'salessnap-countdown.js' | asset_url }}" defer="defer"></script>
+<script>
+(function() {
+  function startTimer() {
+    var banner = document.getElementById('salessnap-countdown-banner');
+    if (!banner) return;
+    var elD = document.getElementById('ss-days');
+    var elH = document.getElementById('ss-hours');
+    var elM = document.getElementById('ss-mins');
+    var elS = document.getElementById('ss-secs');
+    var endStr = banner.getAttribute('data-ends-at');
+    var target = new Date(endStr).getTime();
+    if (isNaN(target)) target = Date.now() + (48 * 3600 * 1000);
+
+    function tick() {
+      var diff = Math.max(0, target - Date.now());
+      var d = Math.floor(diff / 86400000);
+      var h = Math.floor((diff % 86400000) / 3600000);
+      var m = Math.floor((diff % 3600000) / 60000);
+      var s = Math.floor((diff % 60000) / 1000);
+      if (elD) elD.textContent = String(d).padStart(2, '0');
+      if (elH) elH.textContent = String(h).padStart(2, '0');
+      if (elM) elM.textContent = String(m).padStart(2, '0');
+      if (elS) elS.textContent = String(s).padStart(2, '0');
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startTimer);
+  } else {
+    startTimer();
+  }
+})();
+</script>
+{% endif %}
 
 {% schema %}
 {
@@ -56,6 +90,12 @@
   "stylesheet": "salessnap-countdown.css",
   "javascript": "salessnap-countdown.js",
   "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable",
+      "label": "Enable Countdown Bar",
+      "default": true
+    },
     {
       "type": "text",
       "id": "headline",
