@@ -9,7 +9,7 @@ return [
     'session_token_max_age' => 90,
     'retention_days' => (int) env('PROMOTION_RETENTION_DAYS', 90),
     'store_listing_url' => env('SHOPIFY_APP_STORE_URL'),
-    'support_email' => env('SHOPIFY_SUPPORT_EMAIL'),
+    'support_email' => env('SHOPIFY_SUPPORT_EMAIL', 'akestechinfotech@gmail.com'),
     'billing_test_mode' => (bool) env('SHOPIFY_BILLING_TEST', true),
     'plans' => [
         'pro' => [

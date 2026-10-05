@@ -158,7 +158,7 @@
     <div class="meta">
       <strong>Effective Date:</strong> October 5, 2026 &nbsp;·&nbsp;
       <strong>App:</strong> SaleSnap Flash Sale &amp; Bundles &nbsp;·&nbsp;
-      <strong>Operator:</strong> RankBooster Infotech
+      <strong>Operator:</strong> AkesTech Infotech
     </div>
 
     <div class="highlight-box">
@@ -168,7 +168,7 @@
 
     <h2>1. Overview &amp; Scope</h2>
     <p>
-      This Privacy Policy describes how SaleSnap ("we", "our", or "the App"), developed by RankBooster Infotech, collects, uses, stores, and protects information when installed by merchants on Shopify stores ("Store" or "Merchant").
+      This Privacy Policy describes how SaleSnap ("we", "our", or "the App"), developed by AkesTech Infotech, collects, uses, stores, and protects information when installed by merchants on Shopify stores ("Store" or "Merchant").
     </p>
 
     <h2>2. Information We Collect</h2>
@@ -248,8 +248,8 @@
     <h2>9. Contact Information</h2>
     <p>If you have any questions, concerns, or requests regarding this Privacy Policy or your store data, please contact:</p>
     <p>
-      <strong>RankBooster Infotech — SaleSnap Privacy Team</strong><br>
-      Email: <a href="mailto:support@rankboosterinfotech.in">support@rankboosterinfotech.in</a><br>
+      <strong>AkesTech Infotech — SaleSnap Privacy Team</strong><br>
+      Email: <a href="mailto:akestechinfotech@gmail.com">akestechinfotech@gmail.com</a><br>
       Website: <a href="https://salesnap.rankboosterinfotech.in">https://salesnap.rankboosterinfotech.in</a>
     </p>
   </article>

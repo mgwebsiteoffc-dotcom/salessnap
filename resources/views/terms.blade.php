@@ -144,12 +144,12 @@
     <div class="meta">
       <strong>Effective Date:</strong> October 5, 2026 &nbsp;·&nbsp;
       <strong>App:</strong> SaleSnap Flash Sale &amp; Bundles &nbsp;·&nbsp;
-      <strong>Operator:</strong> RankBooster Infotech
+      <strong>Operator:</strong> AkesTech Infotech
     </div>
 
     <h2>1. Acceptance of Terms</h2>
     <p>
-      By installing, accessing, or using the SaleSnap application ("SaleSnap", "the App", "Service"), provided by RankBooster Infotech ("we", "us", or "our"), you ("Merchant", "User", "you") agree to be bound by these Terms of Service. If you do not agree to these terms, please do not install or use the App.
+      By installing, accessing, or using the SaleSnap application ("SaleSnap", "the App", "Service"), provided by AkesTech Infotech ("we", "us", or "our"), you ("Merchant", "User", "you") agree to be bound by these Terms of Service. If you do not agree to these terms, please do not install or use the App.
     </p>
 
     <h2>2. Description of Service</h2>
@@ -181,7 +181,7 @@
 
     <h2>6. Intellectual Property &amp; License</h2>
     <p>
-      We grant you a limited, non-exclusive, non-transferable, revocable license to access and use SaleSnap on your authorized Shopify stores in accordance with these Terms. All software, code, designs, and branding associated with SaleSnap remain the exclusive intellectual property of RankBooster Infotech.
+      We grant you a limited, non-exclusive, non-transferable, revocable license to access and use SaleSnap on your authorized Shopify stores in accordance with these Terms. All software, code, designs, and branding associated with SaleSnap remain the exclusive intellectual property of AkesTech Infotech.
     </p>
 
     <h2>7. Disclaimer of Warranties</h2>
@@ -191,7 +191,7 @@
 
     <h2>8. Limitation of Liability</h2>
     <p>
-      To the maximum extent permitted by applicable law, in no event shall RankBooster Infotech or its affiliates be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, revenue, or store data resulting from your use of or inability to use the Service.
+      To the maximum extent permitted by applicable law, in no event shall AkesTech Infotech or its affiliates be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, revenue, or store data resulting from your use of or inability to use the Service.
     </p>
 
     <h2>9. Termination</h2>
@@ -207,8 +207,8 @@
     <h2>11. Contact &amp; Support</h2>
     <p>
       If you have questions regarding these Terms of Service, please reach out to our team:<br>
-      <strong>RankBooster Infotech — SaleSnap Legal &amp; Support</strong><br>
-      Email: <a href="mailto:support@rankboosterinfotech.in">support@rankboosterinfotech.in</a><br>
+      <strong>AkesTech Infotech — SaleSnap Legal &amp; Support</strong><br>
+      Email: <a href="mailto:akestechinfotech@gmail.com">akestechinfotech@gmail.com</a><br>
       Website: <a href="https://salesnap.rankboosterinfotech.in">https://salesnap.rankboosterinfotech.in</a>
     </p>
   </article>

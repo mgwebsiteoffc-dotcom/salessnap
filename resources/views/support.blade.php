@@ -178,7 +178,7 @@
     <h1>Support &amp; Help Center</h1>
     <div class="meta">
       <strong>App:</strong> SaleSnap Flash Sale &amp; Bundles &nbsp;·&nbsp;
-      <strong>Developer:</strong> RankBooster Infotech &nbsp;·&nbsp;
+      <strong>Developer:</strong> AkesTech Infotech &nbsp;·&nbsp;
       <strong>Response SLA:</strong> Within 24–48 Business Hours
     </div>
 
@@ -188,7 +188,7 @@
         <h3>Need direct assistance or have questions?</h3>
         <p>Our dedicated support team is available Monday through Friday to help you get the most out of SaleSnap.</p>
       </div>
-      <a class="btn-contact" href="mailto:support@rankboosterinfotech.in">Email Support ↗</a>
+      <a class="btn-contact" href="mailto:akestechinfotech@gmail.com">Email Support ↗</a>
     </div>
 
     <h2>Frequently Asked Questions &amp; Troubleshooting</h2>
@@ -239,8 +239,8 @@
 
     <h2>Support Contact Details</h2>
     <p>
-      <strong>Company:</strong> RankBooster Infotech<br>
-      <strong>Support Email:</strong> <a href="mailto:support@rankboosterinfotech.in">support@rankboosterinfotech.in</a><br>
+      <strong>Company:</strong> AkesTech Infotech<br>
+      <strong>Support Email:</strong> <a href="mailto:akestechinfotech@gmail.com">akestechinfotech@gmail.com</a><br>
       <strong>Website:</strong> <a href="https://salesnap.rankboosterinfotech.in">https://salesnap.rankboosterinfotech.in</a><br>
       <strong>Hours:</strong> Monday – Friday, 9:00 AM – 6:00 PM IST
     </p>
