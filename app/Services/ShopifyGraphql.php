@@ -749,7 +749,7 @@ GQL;
     }
 
     public function generateCountdownLiquid(array $config, Shop $shop): string {
-        $headline = htmlspecialchars($config['headline'] ?? '⚡ FLASH SALE IS LIVE! Extra Discount Auto-Applied', ENT_QUOTES, 'UTF-8');
+        $headline = htmlspecialchars($config['headline'] ?? 'FLASH SALE IS LIVE! Extra Discount Auto-Applied', ENT_QUOTES, 'UTF-8');
         $subtext = htmlspecialchars($config['subtext'] ?? 'Special promotional deals ending soon. Shop now while supplies last!', ENT_QUOTES, 'UTF-8');
         $endsAt = htmlspecialchars($config['ends_at'] ?? now()->addDays(2)->toIso8601String(), ENT_QUOTES, 'UTF-8');
         $bgColor = htmlspecialchars($config['bg_color'] ?? '#111827', ENT_QUOTES, 'UTF-8');
@@ -767,7 +767,7 @@ GQL;
 <div id="salessnap-countdown-banner" style="position: sticky; {$position} z-index: 2147483640; width: 100%; background: {$bgColor}; color: {$textColor}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-bottom: 2px solid {$accentColor}; line-height: 1.4;">
   <div style="max-width: 1200px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
     <div style="display: flex; align-items: center; gap: 12px; min-width: 240px;">
-      <span style="font-size: 20px; line-height: 1;">⚡</span>
+      <svg style="width:20px;height:20px;color:{$accentColor};flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm1-12a1 1 0 1 0-2 0v4.4a1 1 0 0 0 .3.7l2.8 2.8a1 1 0 0 0 1.4-1.4L11 9.9V6z" clip-rule="evenodd"/></svg>
       <div>
         <div style="font-weight: 700; font-size: 14px; letter-spacing: -0.01em;">{$headline}</div>
         <div style="font-size: 12px; opacity: 0.85; margin-top: 2px;">{$subtext}</div>

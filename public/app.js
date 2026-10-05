@@ -25,11 +25,11 @@
   const pageHeaders = {
     overview: ['SaleSnap', 'Schedule selected product changes with pre-change snapshots and restore reporting.'],
     campaigns: ['Campaigns', 'Plan scheduled product promotions and review their restore status.'],
-    products: ['Products & Collections', 'Explore store products and collections to launch flash sales or bulk bundles.'],
-    bundles: ['Bundle Creator', 'Create high-converting multi-product bundles and bulk value packs in Shopify.'],
+    products: ['Products & Bundles', 'Explore store products, collections, combo bundles, and bulk multi-packs.'],
+    bundles: ['Products & Bundles', 'Explore store products, collections, combo bundles, and bulk multi-packs.'],
     themes: ['Theme & Countdown', 'Publish promo theme copies with synchronized live countdown timer announcement bars.'],
-    snapshots: ['Snapshots & Restores', 'Review campaign snapshots, restore outcomes, and any skipped fields.'],
-    activity: ['Activity Log', 'A clear audit trail of scheduled campaigns, restores, and bundle creations.'],
+    snapshots: ['Safety & Audit', 'Review campaign snapshots, restore outcomes, and clear activity audit trails.'],
+    activity: ['Safety & Audit', 'Review campaign snapshots, restore outcomes, and clear activity audit trails.'],
     billing: ['Billing & Plans', 'Manage your SaleSnap app subscription and unlock advanced capabilities.'],
     settings: ['Settings', 'Customize discount guardrails, price rounding, default tags, and countdown widget styling.']
   };
@@ -73,6 +73,33 @@
     return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  function svgIcon(name, extraClass = '') {
+    const cls = extraClass ? `polaris-icon ${extraClass}` : 'polaris-icon';
+    switch (name) {
+      case 'plus':
+        return `<svg class="${cls}" viewBox="0 0 20 20" fill="currentColor"><path d="M10 4a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H5a1 1 0 1 1 0-2h4V5a1 1 0 0 1 1-1z"/></svg>`;
+      case 'bundle':
+      case 'package':
+        return `<svg class="${cls}" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 2 6.5v7L10 18l8-4.5v-7L10 2zm0 2.2 5.8 3.3-2.3 1.3-5.8-3.3L10 4.2zM4.2 8.2l4.8 2.7v5.3L4.2 13.5V8.2zm6.8 8v-5.3l4.8-2.7v5.3l-4.8 2.7z"/></svg>`;
+      case 'theme':
+        return `<svg class="${cls}" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4zm2 1v4h10V5H5zm0 6v4h4v-4H5zm6 0v4h4v-4h-4z"/></svg>`;
+      case 'check':
+        return `<svg class="${cls}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z" clip-rule="evenodd"/></svg>`;
+      case 'shield':
+        return `<svg class="${cls}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2s5 2 7 3v5c0 4.5-3.5 7.5-7 8-3.5-.5-7-3.5-7-8V5c2-1 7-3 7-3zm0 2.2C8.3 5 4.9 6.4 4.5 6.7v3.3c0 3.5 2.5 5.8 5.5 6.4 3-.6 5.5-2.9 5.5-6.4V6.7C15.1 6.4 11.7 5 10 4.2zM8.7 11.3l-1.5-1.5a.7.7 0 1 1 1-1l1 1 3-3a.7.7 0 1 1 1 1l-3.5 3.5a.7.7 0 0 1-1 0z" clip-rule="evenodd"/></svg>`;
+      case 'refresh':
+        return `<svg class="${cls}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 10a6 6 0 1 1 1.8 4.3.8.8 0 1 0-1.1 1.1A7.5 7.5 0 1 0 2.5 10H1a.5.5 0 0 0-.4.8l2 2.5a.5.5 0 0 0 .8 0l2-2.5a.5.5 0 0 0-.4-.8H4z" clip-rule="evenodd"/></svg>`;
+      case 'discount':
+        return `<svg class="${cls}" viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 0 1 1-1h5.6a1 1 0 0 1 .7.3l8.4 8.4a1 1 0 0 1 0 1.4l-5.6 5.6a1 1 0 0 1-1.4 0L3.3 10.3a1 1 0 0 1-.3-.7V4a1 1 0 0 1 0-1zm3.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>`;
+      case 'alert':
+        return `<svg class="${cls}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-.8 4.5a.8.8 0 0 1 1.6 0v5a.8.8 0 0 1-1.6 0v-5zm.8 8.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z" clip-rule="evenodd"/></svg>`;
+      case 'clock':
+        return `<svg class="${cls}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm1-12a1 1 0 1 0-2 0v4.4a1 1 0 0 0 .3.7l2.8 2.8a1 1 0 0 0 1.4-1.4L11 9.9V6z" clip-rule="evenodd"/></svg>`;
+      default:
+        return '';
+    }
+  }
+
   function toast(text) {
     let el = $('#toast');
     if (!el) return;
@@ -85,7 +112,7 @@
   function banner(text) {
     let e = $('#error-banner');
     if (!e) return;
-    e.innerHTML = '<div class="polaris-banner-icon">!</div><div class="polaris-banner-content"><strong>Could not load store data</strong><p>' + esc(text) + '</p></div>';
+    e.innerHTML = '<div class="polaris-banner-icon">' + svgIcon('alert') + '</div><div class="polaris-banner-content"><strong>Could not load store data</strong><p>' + esc(text) + '</p></div>';
     e.classList.remove('hidden');
   }
 
@@ -279,12 +306,16 @@
       $('#stat-scheduled').textContent = '0';
       $('#stat-protected').textContent = '0';
       $('#stat-rollbacks').textContent = '0';
-      $('#campaign-list').innerHTML = '<div class="polaris-empty-state" style="color:#d72c0d;"><strong>Could not load store campaigns:</strong><br>' + esc(e.message) + '<br><br><button type="button" class="polaris-btn" onclick="location.reload()">↺ Retry</button></div>';
+      $('#campaign-list').innerHTML = '<div class="polaris-empty-state" style="color:#d72c0d;"><strong>Could not load store campaigns:</strong><br>' + esc(e.message) + '<br><br><button type="button" class="polaris-btn" onclick="location.reload()">' + svgIcon('refresh') + ' Retry</button></div>';
     }
   }
 
   function setPage(page) {
-    $$('.polaris-tab-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
+    let group = page;
+    if (page === 'bundles' || page === 'products' || page === 'collections') group = 'products';
+    if (page === 'snapshots' || page === 'activity') group = 'snapshots';
+
+    $$('.polaris-tab-item').forEach(n => n.classList.toggle('active', n.dataset.page === group));
     $('#page-title').textContent = pageHeaders[page]?.[0] || 'SaleSnap';
     $('#page-desc').textContent = pageHeaders[page]?.[1] || '';
     let isOverview = page === 'overview';
@@ -316,159 +347,13 @@
       return;
     }
 
-    if (page === 'bundles') {
-      body.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-          <div style="display:flex;gap:8px;">
-            <button class="polaris-btn polaris-btn-primary" id="open-bundle-combo-btn">＋ Create Combo Bundle</button>
-            <button class="polaris-btn" id="open-bundle-multipack-btn">⚡ Bulk Multi-Packs</button>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <input class="polaris-input" id="bundle-search-input" placeholder="Search bundles in store..." style="max-width:260px;">
-            <button class="polaris-btn" id="bundle-search-btn">Filter</button>
-          </div>
-        </div>
-        <div id="bundle-results-box"><div class="polaris-empty-state">Loading your store bundles…</div></div>
-      `;
-
-      $('#open-bundle-combo-btn').onclick = () => openBundleModal('combo');
-      $('#open-bundle-multipack-btn').onclick = () => openBundleModal('multipack');
-      $('#bundle-search-btn').onclick = () => loadStoreBundles($('#bundle-search-input').value);
-      $('#bundle-search-input').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); loadStoreBundles($('#bundle-search-input').value); } };
-
-      loadStoreBundles();
+    if (page === 'products' || page === 'bundles' || page === 'collections') {
+      renderProductsAndBundlesGroup(body, page === 'bundles' ? 'bundles' : (page === 'collections' ? 'collections' : 'products'));
       return;
     }
 
-    if (page === 'products') {
-      catalogSelectedIds.clear();
-      body.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-          <div class="polaris-segmented-control" style="max-width:300px;margin-bottom:0;">
-            <button class="polaris-segment-btn ${catalogTab === 'products' ? 'active' : ''}" id="catalog-tab-products">Products</button>
-            <button class="polaris-segment-btn ${catalogTab === 'collections' ? 'active' : ''}" id="catalog-tab-collections">Collections</button>
-          </div>
-
-          <div style="display:flex;gap:8px;">
-            <button class="polaris-btn" id="bulk-bundle-from-catalog" disabled>🎁 Create Bundle (0)</button>
-            <button class="polaris-btn" id="bulk-multipack-from-catalog" disabled>⚡ Bulk Multi-Packs (0)</button>
-            <button class="polaris-btn polaris-btn-primary" id="bulk-discount-from-catalog" disabled>＋ Discount Selected (0)</button>
-          </div>
-        </div>
-
-        <div id="catalog-search-bar" style="display:flex;gap:10px;max-width:500px;margin-bottom:16px;">
-          <input class="polaris-input" id="catalog-search-input" placeholder="Search products by title...">
-          <button class="polaris-btn" id="catalog-search-btn">Search</button>
-        </div>
-
-        <div id="catalog-results-box"><div class="polaris-empty-state">Loading your catalog…</div></div>
-      `;
-
-      $('#catalog-tab-products').onclick = () => {
-        catalogTab = 'products';
-        catalogSelectedIds.clear();
-        $('#catalog-tab-products').classList.add('active');
-        $('#catalog-tab-collections').classList.remove('active');
-        $('#catalog-search-input').placeholder = 'Search products by title...';
-        updateCatalogBulkButtons();
-        loadCatalogProducts();
-      };
-
-      $('#catalog-tab-collections').onclick = () => {
-        catalogTab = 'collections';
-        catalogSelectedIds.clear();
-        $('#catalog-tab-collections').classList.add('active');
-        $('#catalog-tab-products').classList.remove('active');
-        $('#catalog-search-input').placeholder = 'Filter collections...';
-        updateCatalogBulkButtons();
-        loadCatalogCollections();
-      };
-
-      $('#catalog-search-btn').onclick = () => {
-        if (catalogTab === 'products') loadCatalogProducts($('#catalog-search-input').value);
-        else loadCatalogCollections($('#catalog-search-input').value);
-      };
-
-      $('#catalog-search-input').onkeydown = e => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          if (catalogTab === 'products') loadCatalogProducts($('#catalog-search-input').value);
-          else loadCatalogCollections($('#catalog-search-input').value);
-        }
-      };
-
-      $('#bulk-bundle-from-catalog').onclick = () => {
-        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
-        openBundleModal('combo', prods);
-      };
-
-      $('#bulk-multipack-from-catalog').onclick = () => {
-        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
-        openBundleModal('multipack', prods);
-      };
-
-      $('#bulk-discount-from-catalog').onclick = () => {
-        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
-        openCreateWithProducts(prods);
-      };
-
-      loadCatalogProducts();
-      return;
-    }
-
-    if (page === 'snapshots') {
-      body.innerHTML = '<div class="polaris-empty-state">Loading snapshot records…</div>';
-      try {
-        let d = await api('/snapshots');
-        if (!d.snapshots.length) {
-          body.innerHTML = '<div class="polaris-empty-state">Snapshots will appear here automatically when a campaign runs.</div>';
-          return;
-        }
-        body.innerHTML = `
-          <div style="overflow-x:auto;">
-            <table class="polaris-table">
-              <thead>
-                <tr><th>CAMPAIGN</th><th>PRODUCT</th><th>STATUS</th><th>CONFLICTS / DETAILS</th></tr>
-              </thead>
-              <tbody>
-                ${d.snapshots.map(s => `
-                  <tr>
-                    <td><strong>${esc(s.campaign)}</strong></td>
-                    <td>${esc(s.product_title || 'Product')}<div class="polaris-row-meta">GID: ${esc(s.product_gid.split('/').pop())}</div></td>
-                    <td>${statusBadge(s.status)}</td>
-                    <td>${esc([...(s.conflicts || []), s.last_error || ''].filter(Boolean).join('; ') || 'Protected')}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        `;
-      } catch (e) {
-        body.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
-      }
-      return;
-    }
-
-    if (page === 'activity') {
-      body.innerHTML = (dashboard?.logs || []).length ? `
-        <div style="overflow-x:auto;">
-          <table class="polaris-table">
-            <thead>
-              <tr><th>EVENT</th><th>TIMESTAMP</th><th>LEVEL</th><th>DETAILS</th></tr>
-            </thead>
-            <tbody>
-              ${dashboard.logs.map(l => `
-                <tr>
-                  <td><strong>${esc(l.event.replaceAll('_', ' '))}</strong></td>
-                  <td>${formatDate(l.created_at)}</td>
-                  <td><span class="polaris-badge polaris-badge-neutral">${esc(l.severity)}</span></td>
-                  <td><code>${esc(JSON.stringify(l.details || {}))}</code></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      ` : '<div class="polaris-empty-state">Activity logs will appear when promotions are scheduled.</div>';
+    if (page === 'snapshots' || page === 'activity') {
+      renderSafetyAndAuditGroup(body, page);
       return;
     }
 
@@ -491,6 +376,170 @@
     }
   }
 
+  function renderProductsAndBundlesGroup(body, activeTab = 'products') {
+    catalogSelectedIds.clear();
+    body.innerHTML = `
+      <div class="polaris-sub-tabs">
+        <button class="polaris-sub-tab-item ${activeTab === 'products' ? 'active' : ''}" id="pb-subtab-products">${svgIcon('product')} Products</button>
+        <button class="polaris-sub-tab-item ${activeTab === 'collections' ? 'active' : ''}" id="pb-subtab-collections">${svgIcon('collection')} Collections</button>
+        <button class="polaris-sub-tab-item ${activeTab === 'bundles' ? 'active' : ''}" id="pb-subtab-bundles">${svgIcon('bundle')} Bundles &amp; Multi-Packs</button>
+      </div>
+      <div id="pb-subtab-content"></div>
+    `;
+
+    $('#pb-subtab-products').onclick = () => renderProductsAndBundlesGroup(body, 'products');
+    $('#pb-subtab-collections').onclick = () => renderProductsAndBundlesGroup(body, 'collections');
+    $('#pb-subtab-bundles').onclick = () => renderProductsAndBundlesGroup(body, 'bundles');
+
+    const content = $('#pb-subtab-content');
+
+    if (activeTab === 'products') {
+      catalogTab = 'products';
+      content.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <div style="display:flex;gap:10px;flex:1;max-width:400px;">
+            <input class="polaris-input" id="catalog-search-input" placeholder="Search products by title...">
+            <button class="polaris-btn" id="catalog-search-btn">Search</button>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="polaris-btn" id="bulk-bundle-from-catalog" disabled>Create Bundle (0)</button>
+            <button class="polaris-btn" id="bulk-multipack-from-catalog" disabled>Bulk Multi-Packs (0)</button>
+            <button class="polaris-btn polaris-btn-primary" id="bulk-discount-from-catalog" disabled>${svgIcon('plus')} Discount Selected (0)</button>
+          </div>
+        </div>
+        <div id="catalog-results-box"><div class="polaris-empty-state">Loading your catalog…</div></div>
+      `;
+
+      $('#catalog-search-btn').onclick = () => loadCatalogProducts($('#catalog-search-input').value);
+      $('#catalog-search-input').onkeydown = e => {
+        if (e.key === 'Enter') { e.preventDefault(); loadCatalogProducts($('#catalog-search-input').value); }
+      };
+
+      $('#bulk-bundle-from-catalog').onclick = () => {
+        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
+        openBundleModal('combo', prods);
+      };
+
+      $('#bulk-multipack-from-catalog').onclick = () => {
+        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
+        openBundleModal('multipack', prods);
+      };
+
+      $('#bulk-discount-from-catalog').onclick = () => {
+        const prods = currentProducts.filter(p => catalogSelectedIds.has(p.id));
+        openCreateWithProducts(prods);
+      };
+
+      loadCatalogProducts();
+    } else if (activeTab === 'collections') {
+      catalogTab = 'collections';
+      content.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <div style="display:flex;gap:10px;flex:1;max-width:400px;">
+            <input class="polaris-input" id="catalog-search-input" placeholder="Filter collections...">
+            <button class="polaris-btn" id="catalog-search-btn">Filter</button>
+          </div>
+        </div>
+        <div id="catalog-results-box"><div class="polaris-empty-state">Loading collections…</div></div>
+      `;
+
+      $('#catalog-search-btn').onclick = () => loadCatalogCollections($('#catalog-search-input').value);
+      $('#catalog-search-input').onkeydown = e => {
+        if (e.key === 'Enter') { e.preventDefault(); loadCatalogCollections($('#catalog-search-input').value); }
+      };
+
+      loadCatalogCollections();
+    } else if (activeTab === 'bundles') {
+      content.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <div style="display:flex;gap:8px;">
+            <button class="polaris-btn polaris-btn-primary" id="open-bundle-combo-btn">${svgIcon('plus')} Create Combo Bundle</button>
+            <button class="polaris-btn" id="open-bundle-multipack-btn">${svgIcon('bundle')} Bulk Multi-Packs</button>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <input class="polaris-input" id="bundle-search-input" placeholder="Search bundles in store..." style="max-width:260px;">
+            <button class="polaris-btn" id="bundle-search-btn">Filter</button>
+          </div>
+        </div>
+        <div id="bundle-results-box"><div class="polaris-empty-state">Loading your store bundles…</div></div>
+      `;
+
+      $('#open-bundle-combo-btn').onclick = () => openBundleModal('combo');
+      $('#open-bundle-multipack-btn').onclick = () => openBundleModal('multipack');
+      $('#bundle-search-btn').onclick = () => loadStoreBundles($('#bundle-search-input').value);
+      $('#bundle-search-input').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); loadStoreBundles($('#bundle-search-input').value); } };
+
+      loadStoreBundles();
+    }
+  }
+
+  async function renderSafetyAndAuditGroup(body, activeTab = 'snapshots') {
+    body.innerHTML = `
+      <div class="polaris-sub-tabs">
+        <button class="polaris-sub-tab-item ${activeTab === 'snapshots' ? 'active' : ''}" id="sa-subtab-snapshots">${svgIcon('shield')} Snapshots</button>
+        <button class="polaris-sub-tab-item ${activeTab === 'activity' ? 'active' : ''}" id="sa-subtab-activity">${svgIcon('alert')} Activity Log</button>
+      </div>
+      <div id="sa-subtab-content"></div>
+    `;
+
+    $('#sa-subtab-snapshots').onclick = () => renderSafetyAndAuditGroup(body, 'snapshots');
+    $('#sa-subtab-activity').onclick = () => renderSafetyAndAuditGroup(body, 'activity');
+
+    const content = $('#sa-subtab-content');
+
+    if (activeTab === 'snapshots') {
+      content.innerHTML = '<div class="polaris-empty-state">Loading snapshot records…</div>';
+      try {
+        let d = await api('/snapshots');
+        if (!d.snapshots.length) {
+          content.innerHTML = '<div class="polaris-empty-state">Snapshots will appear here automatically when a campaign runs.</div>';
+          return;
+        }
+        content.innerHTML = `
+          <div style="overflow-x:auto;">
+            <table class="polaris-table">
+              <thead>
+                <tr><th>CAMPAIGN</th><th>PRODUCT</th><th>STATUS</th><th>CONFLICTS / DETAILS</th></tr>
+              </thead>
+              <tbody>
+                ${d.snapshots.map(s => `
+                  <tr>
+                    <td><strong>${esc(s.campaign)}</strong></td>
+                    <td>${esc(s.product_title || 'Product')}<div class="polaris-row-meta">GID: ${esc(s.product_gid.split('/').pop())}</div></td>
+                    <td>${statusBadge(s.status)}</td>
+                    <td>${esc([...(s.conflicts || []), s.last_error || ''].filter(Boolean).join('; ') || 'Protected')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (e) {
+        content.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
+      }
+    } else if (activeTab === 'activity') {
+      content.innerHTML = (dashboard?.logs || []).length ? `
+        <div style="overflow-x:auto;">
+          <table class="polaris-table">
+            <thead>
+              <tr><th>EVENT</th><th>TIMESTAMP</th><th>LEVEL</th><th>DETAILS</th></tr>
+            </thead>
+            <tbody>
+              ${dashboard.logs.map(l => `
+                <tr>
+                  <td><strong>${esc(l.event.replaceAll('_', ' '))}</strong></td>
+                  <td>${formatDate(l.created_at)}</td>
+                  <td><span class="polaris-badge polaris-badge-neutral">${esc(l.severity)}</span></td>
+                  <td><code>${esc(JSON.stringify(l.details || {}))}</code></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<div class="polaris-empty-state">Activity logs will appear when promotions are scheduled.</div>';
+    }
+  }
+
   function updateCatalogBulkButtons() {
     const count = catalogSelectedIds.size;
     const b1 = $('#bulk-bundle-from-catalog');
@@ -499,15 +548,15 @@
 
     if (b1) {
       b1.disabled = count < 1;
-      b1.textContent = `🎁 Create Bundle (${count})`;
+      b1.textContent = `Create Bundle (${count})`;
     }
     if (b2) {
       b2.disabled = count < 1;
-      b2.textContent = `⚡ Bulk Multi-Packs (${count})`;
+      b2.textContent = `Bulk Multi-Packs (${count})`;
     }
     if (b3) {
       b3.disabled = count < 1;
-      b3.textContent = `＋ Discount Selected (${count})`;
+      b3.innerHTML = `${svgIcon('plus')} Discount Selected (${count})`;
     }
   }
 
@@ -550,8 +599,8 @@
                   <td>${esc(p.variants_count || 1)} variant(s)</td>
                   <td>
                     <div style="display:flex;gap:6px;">
-                      <button class="polaris-btn polaris-btn-plain start-promo-for-prod" data-id="${esc(p.id)}">＋ Discount</button>
-                      <button class="polaris-btn polaris-btn-plain start-bundle-for-prod" data-id="${esc(p.id)}">🎁 Bundle</button>
+                      <button class="polaris-btn polaris-btn-plain start-promo-for-prod" data-id="${esc(p.id)}">Discount</button>
+                      <button class="polaris-btn polaris-btn-plain start-bundle-for-prod" data-id="${esc(p.id)}">Bundle</button>
                     </div>
                   </td>
                 </tr>
@@ -625,8 +674,8 @@
                   <td><code>${esc(c.handle)}</code></td>
                   <td>
                     <div style="display:flex;gap:6px;">
-                      <button class="polaris-btn polaris-btn-plain start-promo-for-col" data-id="${esc(c.id)}">＋ Discount All</button>
-                      <button class="polaris-btn polaris-btn-plain start-bundle-for-col" data-id="${esc(c.id)}" data-title="${esc(c.title)}">🎁 Create Collection Bundle</button>
+                      <button class="polaris-btn polaris-btn-plain start-promo-for-col" data-id="${esc(c.id)}">Discount All</button>
+                      <button class="polaris-btn polaris-btn-plain start-bundle-for-col" data-id="${esc(c.id)}" data-title="${esc(c.title)}">Create Collection Bundle</button>
                     </div>
                   </td>
                 </tr>
@@ -651,7 +700,7 @@
             toast(e.message);
           } finally {
             btn.disabled = false;
-            btn.textContent = '🎁 Create Collection Bundle';
+            btn.textContent = 'Create Collection Bundle';
           }
         };
       });
@@ -671,7 +720,7 @@
           <div class="polaris-empty-state">
             <p style="font-weight:600;font-size:14px;margin-bottom:6px;">No bundles found yet</p>
             <p style="margin-bottom:14px;">Create combo bundles or bulk multi-packs to increase your store's Average Order Value (AOV).</p>
-            <button class="polaris-btn polaris-btn-primary" onclick="window.pmOpenBundleModal('combo')">＋ Create Your First Bundle</button>
+            <button class="polaris-btn polaris-btn-primary" onclick="window.pmOpenBundleModal('combo')">${svgIcon('plus')} Create Your First Bundle</button>
           </div>
         `;
         return;
@@ -718,7 +767,7 @@
 
       container.innerHTML = `
         <div class="polaris-banner ${isPro ? 'polaris-banner-info' : 'polaris-banner-warning'}">
-          <div class="polaris-banner-icon">${isPro ? '✓' : 'ⓘ'}</div>
+          <div class="polaris-banner-icon">${isPro ? svgIcon('check') : svgIcon('alert')}</div>
           <div class="polaris-banner-content">
             <strong>Current Plan: ${isPro ? 'SaleSnap Pro (Active)' : 'Free Tier'}</strong>
             <p>${isPro ? 'You have access to unlimited promotions, automatic rollback, and priority support.' : 'Upgrade to Pro to unlock unlimited campaigns and collection-wide discounts.'}</p>
@@ -731,10 +780,10 @@
             <div class="polaris-plan-price">$0 <small>/ month</small></div>
             <p class="polaris-text-subdued">Basic product price scheduling</p>
             <ul class="polaris-plan-features">
-              <li><b>✓</b> Up to 3 active campaigns</li>
-              <li><b>✓</b> Individual product discounts</li>
-              <li><b>✓</b> Pre-change price snapshot</li>
-              <li><b>✓</b> Manual rollback</li>
+              <li>${svgIcon('check')} Up to 3 active campaigns</li>
+              <li>${svgIcon('check')} Individual product discounts</li>
+              <li>${svgIcon('check')} Pre-change price snapshot</li>
+              <li>${svgIcon('check')} Manual rollback</li>
             </ul>
             <button class="polaris-btn" disabled>${!isPro ? 'Current Plan' : 'Free Tier'}</button>
           </div>
@@ -747,11 +796,11 @@
             <div class="polaris-plan-price">$9.99 <small>/ month</small></div>
             <p class="polaris-text-subdued">Full automated promotion automation</p>
             <ul class="polaris-plan-features">
-              <li><b>✓</b> <strong>Unlimited</strong> active campaigns</li>
-              <li><b>✓</b> Collection-wide bulk selection</li>
-              <li><b>✓</b> Automated end-date rollback</li>
-              <li><b>✓</b> Emergency conflict detection</li>
-              <li><b>✓</b> Priority queue worker</li>
+              <li>${svgIcon('check')} <strong>Unlimited</strong> active campaigns</li>
+              <li>${svgIcon('check')} Collection-wide bulk selection</li>
+              <li>${svgIcon('check')} Automated end-date rollback</li>
+              <li>${svgIcon('check')} Emergency conflict detection</li>
+              <li>${svgIcon('check')} Priority queue worker</li>
             </ul>
             ${isPro ? `
               <button class="polaris-btn polaris-btn-destructive" id="cancel-sub-btn">Cancel Pro Subscription</button>
@@ -1311,9 +1360,9 @@
 
       const hasConflicts = snapshots.some(s => (s.conflicts && s.conflicts.length > 0));
       if (hasConflicts) {
-        $('#cd-snapshot-status').innerHTML = '<span style="color:#d72c0d;">⚠️ Conflicts Detected</span>';
+        $('#cd-snapshot-status').innerHTML = `<span style="color:#d72c0d;display:inline-flex;align-items:center;gap:4px;">${svgIcon('alert')} Conflicts Detected</span>`;
       } else if (c.snapshot_complete) {
-        $('#cd-snapshot-status').innerHTML = '<span style="color:#0e5b38;">✓ 100% Snapshotted &amp; Safe</span>';
+        $('#cd-snapshot-status').innerHTML = `<span style="color:#0e5b38;display:inline-flex;align-items:center;gap:4px;">${svgIcon('check')} 100% Snapshotted &amp; Safe</span>`;
       } else {
         $('#cd-snapshot-status').innerHTML = '<span style="color:#6d7175;">Pending Snapshot</span>';
       }
@@ -1321,20 +1370,20 @@
       // Actions toolbar
       let actionsHtml = `<div style="display:flex;gap:8px;flex-wrap:wrap;">`;
       if (c.can_start_now) {
-        actionsHtml += `<button type="button" class="polaris-btn polaris-btn-primary cd-action-start" data-id="${c.id}">⚡ Start Campaign Now</button>`;
+        actionsHtml += `<button type="button" class="polaris-btn polaris-btn-primary cd-action-start" data-id="${c.id}">${svgIcon('discount')} Start Campaign Now</button>`;
       }
       if (c.can_restore) {
-        actionsHtml += `<button type="button" class="polaris-btn polaris-btn-destructive cd-action-restore" data-id="${c.id}" data-name="${esc(c.name)}">↺ Rollback &amp; Restore Prices</button>`;
+        actionsHtml += `<button type="button" class="polaris-btn polaris-btn-destructive cd-action-restore" data-id="${c.id}" data-name="${esc(c.name)}">${svgIcon('refresh')} Rollback &amp; Restore Prices</button>`;
       }
       if (c.can_retry) {
-        actionsHtml += `<button type="button" class="polaris-btn polaris-btn-primary cd-action-retry" data-id="${c.id}">↻ Retry Preflight</button>`;
+        actionsHtml += `<button type="button" class="polaris-btn polaris-btn-primary cd-action-retry" data-id="${c.id}">${svgIcon('refresh')} Retry Preflight</button>`;
       }
       if (c.can_cancel) {
         actionsHtml += `<button type="button" class="polaris-btn cd-action-cancel" data-id="${c.id}">Cancel Campaign</button>`;
       }
       actionsHtml += `</div><div style="display:flex;gap:8px;flex-wrap:wrap;">`;
-      actionsHtml += `<button type="button" class="polaris-btn cd-action-theme" data-id="${c.id}">⚡ Publish Theme with Countdown</button>`;
-      actionsHtml += `<button type="button" class="polaris-btn cd-action-dup" data-id="${c.id}">📋 Duplicate</button>`;
+      actionsHtml += `<button type="button" class="polaris-btn cd-action-theme" data-id="${c.id}">${svgIcon('theme')} Publish Theme with Countdown</button>`;
+      actionsHtml += `<button type="button" class="polaris-btn cd-action-dup" data-id="${c.id}">${svgIcon('plus')} Duplicate</button>`;
       actionsHtml += `</div>`;
 
       $('#cd-actions-bar').innerHTML = actionsHtml;
@@ -1492,11 +1541,11 @@
         select.innerHTML = '<option value="">Theme permissions required (read_themes)</option>';
         const errBox = $('#theme-publish-error');
         errBox.innerHTML = `
-          <div class="polaris-banner-icon">!</div>
+          <div class="polaris-banner-icon">${svgIcon('alert')}</div>
           <div class="polaris-banner-content">
             <strong>Theme Permissions Required</strong>
             <p>To duplicate themes and publish countdown timers, please update app permissions with Shopify.</p>
-            <button type="button" class="polaris-btn polaris-btn-primary" style="margin-top:8px;" onclick="window.reauthorizeApp()">⚡ Grant Theme Permissions</button>
+            <button type="button" class="polaris-btn polaris-btn-primary" style="margin-top:8px;" onclick="window.reauthorizeApp()">${svgIcon('shield')} Grant Theme Permissions</button>
           </div>
         `;
         errBox.classList.remove('hidden');
@@ -1524,7 +1573,7 @@
 
       if (targetCampaign) {
         const discountPct = targetCampaign.actions?.price_percent || 20;
-        $('#theme-bar-headline').value = `⚡ FLASH SALE IS LIVE! Extra ${discountPct}% Off Selected Items`;
+        $('#theme-bar-headline').value = `FLASH SALE IS LIVE! Extra ${discountPct}% Off Selected Items`;
       }
 
       updateThemePreviewFromInputs();
@@ -1556,7 +1605,7 @@
   window.pmOpenThemePublishModal = openThemePublishModal;
 
   function updateThemePreviewFromInputs() {
-    const headline = $('#theme-bar-headline')?.value || '⚡ FLASH SALE IS LIVE!';
+    const headline = $('#theme-bar-headline')?.value || 'FLASH SALE IS LIVE!';
     const subtext = $('#theme-bar-subtext')?.value || 'Limited time store promotion.';
     const btnText = $('#theme-btn-text')?.value || 'Shop Deals Now';
     const bgColor = $('#theme-bg-color-text')?.value || '#111827';
@@ -1697,7 +1746,7 @@
 
               <div class="polaris-form-group">
                 <label class="polaris-label" for="setting-default-prefix">Default Description Prefix Banner</label>
-                <input class="polaris-input" id="setting-default-prefix" value="${esc(s.default_desc_prefix ?? '🔥 Flash Sale Exclusive: ')}" placeholder="e.g. 🔥 Flash Sale Exclusive: ">
+                <input class="polaris-input" id="setting-default-prefix" value="${esc(s.default_desc_prefix ?? 'Flash Sale Exclusive: ')}" placeholder="e.g. Flash Sale Exclusive: ">
               </div>
             </div>
 
@@ -1729,21 +1778,21 @@
                 <h3 class="polaris-heading" style="margin:0;">3. Theme Copy &amp; Countdown Announcement Bar</h3>
                 <p class="polaris-text-subdued" style="margin:2px 0 0;">Create theme copies with live ticking countdown bars and publish them during sales.</p>
               </div>
-              <button type="button" class="polaris-btn polaris-btn-primary" onclick="window.pmOpenThemePublishModal()">⚡ Duplicate &amp; Publish Theme Now</button>
+              <button type="button" class="polaris-btn polaris-btn-primary" onclick="window.pmOpenThemePublishModal()">${svgIcon('theme')} Duplicate &amp; Publish Theme Now</button>
             </div>
 
             <div class="polaris-banner polaris-banner-info" style="margin-bottom:14px;">
-              <div class="polaris-banner-icon">ℹ</div>
+              <div class="polaris-banner-icon">${svgIcon('alert')}</div>
               <div class="polaris-banner-content">
                 <strong>Current Live Store Theme: ${esc(mainTheme?.name || 'Active Theme')}</strong>
-                ${hasPreviousTheme ? ` · <button type="button" class="polaris-btn polaris-btn-plain" id="setting-revert-theme-btn" style="color:#d72c0d;font-weight:600;">↺ Revert to Previous Original Theme</button>` : ''}
+                ${hasPreviousTheme ? ` · <button type="button" class="polaris-btn polaris-btn-plain" id="setting-revert-theme-btn" style="color:#d72c0d;font-weight:600;">${svgIcon('refresh')} Revert to Previous Original Theme</button>` : ''}
               </div>
             </div>
 
             <div class="polaris-settings-grid">
               <div class="polaris-form-group">
                 <label class="polaris-label" for="setting-cd-headline">Banner Headline Template</label>
-                <input class="polaris-input" id="setting-cd-headline" value="${esc(s.countdown_headline ?? '⚡ FLASH SALE IS LIVE! Extra %discount%% Off Selected Items')}">
+                <input class="polaris-input" id="setting-cd-headline" value="${esc(s.countdown_headline ?? 'FLASH SALE IS LIVE! Extra %discount%% Off Selected Items')}">
                 <div class="polaris-row-meta" style="margin-top:4px;">Use <code>%discount%</code> to dynamically inject active campaign discount rate.</div>
               </div>
 
@@ -1893,11 +1942,11 @@
       if (data.scope_required || (!themes.length && data.error)) {
         container.innerHTML = `
           <div class="polaris-banner polaris-banner-warning" style="margin-bottom:20px;">
-            <div class="polaris-banner-icon">!</div>
+            <div class="polaris-banner-icon">${svgIcon('alert')}</div>
             <div class="polaris-banner-content">
               <strong>Theme Permissions Required (read_themes, write_themes)</strong>
               <p style="margin:4px 0 10px;">To duplicate themes with synchronized live countdown timers and publish them during promotions, SaleSnap needs theme permissions approved in Shopify.</p>
-              <button type="button" class="polaris-btn polaris-btn-primary" onclick="window.reauthorizeApp()">⚡ Grant Theme Permissions</button>
+              <button type="button" class="polaris-btn polaris-btn-primary" onclick="window.reauthorizeApp()">${svgIcon('shield')} Grant Theme Permissions</button>
             </div>
           </div>
           <div class="polaris-empty-state">Click above to approve theme permissions in Shopify Admin.</div>
@@ -1912,8 +1961,8 @@
             <p class="polaris-text-subdued" style="margin:2px 0 0;">Create safe duplicate theme copies with live countdown timers and publish them during active promotions.</p>
           </div>
           <div style="display:flex;gap:8px;">
-            ${canRevert ? `<button type="button" class="polaris-btn" id="theme-page-revert-btn" style="color:#d72c0d;">↺ Restore Original Theme</button>` : ''}
-            <button type="button" class="polaris-btn polaris-btn-primary" onclick="window.pmOpenThemePublishModal()">⚡ Duplicate Theme with Countdown</button>
+            ${canRevert ? `<button type="button" class="polaris-btn" id="theme-page-revert-btn" style="color:#d72c0d;">${svgIcon('refresh')} Restore Original Theme</button>` : ''}
+            <button type="button" class="polaris-btn polaris-btn-primary" onclick="window.pmOpenThemePublishModal()">${svgIcon('theme')} Duplicate Theme with Countdown</button>
           </div>
         </div>
 
@@ -1935,7 +1984,7 @@
                 ${!t.is_main ? `
                   <button type="button" class="polaris-btn polaris-btn-primary publish-single-theme-btn" data-id="${esc(t.id)}" data-name="${esc(t.name)}">Publish as Live Theme</button>
                 ` : `
-                  <button type="button" class="polaris-btn inject-countdown-single-btn" data-id="${esc(t.id)}">⚡ Update Countdown Bar</button>
+                  <button type="button" class="polaris-btn inject-countdown-single-btn" data-id="${esc(t.id)}">${svgIcon('refresh')} Update Countdown Bar</button>
                 `}
               </div>
             </div>
@@ -1987,7 +2036,7 @@
             toast(e.message);
           } finally {
             b.disabled = false;
-            b.textContent = '⚡ Update Countdown Bar';
+            b.innerHTML = `${svgIcon('refresh')} Update Countdown Bar`;
           }
         };
       });

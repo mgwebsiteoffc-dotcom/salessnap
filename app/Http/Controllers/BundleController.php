@@ -87,12 +87,12 @@ class BundleController {
 
         $desc = '<div class="salessnap-bundle-overview" style="font-family: inherit; margin: 16px 0; padding: 16px; border: 1px solid #e1e3e5; border-radius: 8px; background: #fafbfb;">' . "\n";
         if ($savingsAmount > 0) {
-            $desc .= '<p style="color: #0e5b38; font-weight: 600; font-size: 15px; margin: 0 0 10px 0;">🎉 Special Value Bundle Offer: Save ' . $savingsPct . '% ($' . number_format($savingsAmount, 2) . ') off individual prices!</p>' . "\n";
+            $desc .= '<p style="color: #0e5b38; font-weight: 600; font-size: 15px; margin: 0 0 10px 0;">Special Value Bundle Offer: Save ' . $savingsPct . '% ($' . number_format($savingsAmount, 2) . ') off individual prices!</p>' . "\n";
         }
         if (!empty($data['custom_description'])) {
             $desc .= '<p style="margin: 0 0 12px 0;">' . nl2br(htmlspecialchars($data['custom_description'], ENT_QUOTES, 'UTF-8')) . '</p>' . "\n";
         }
-        $desc .= '<h4 style="margin: 12px 0 8px 0; font-size: 14px;">📦 Bundle Includes:</h4>' . "\n";
+        $desc .= '<h4 style="margin: 12px 0 8px 0; font-size: 14px;">Bundle Includes:</h4>' . "\n";
         $desc .= '<ul style="margin: 0 0 12px 20px; padding: 0;">' . "\n" . $itemsHtml . '</ul>' . "\n";
         $desc .= '<p style="font-size: 13px; color: #6d7175; margin: 0;">Total Individual Value: <strike>$' . number_format($totalOriginalPrice, 2) . '</strike> · <strong>Bundle Price: $' . number_format($bundlePrice, 2) . '</strong></p>' . "\n";
         $desc .= '</div>';
@@ -173,7 +173,7 @@ class BundleController {
 
             $title = "{$p['title']} ({$packSize}-Pack Value Bundle)";
             $desc = '<div class="salessnap-bundle-overview" style="margin: 16px 0; padding: 16px; border: 1px solid #e1e3e5; border-radius: 8px; background: #fafbfb;">' . "\n";
-            $desc .= '<p style="color: #0e5b38; font-weight: 600; font-size: 15px; margin: 0 0 10px 0;">⚡ Bulk ' . $packSize . '-Pack Saver: Get ' . $discountPct . '% OFF!</p>' . "\n";
+            $desc .= '<p style="color: #0e5b38; font-weight: 600; font-size: 15px; margin: 0 0 10px 0;">Bulk ' . $packSize . '-Pack Saver: Get ' . $discountPct . '% OFF!</p>' . "\n";
             $desc .= '<p>Includes <strong>' . $packSize . 'x ' . htmlspecialchars($p['title'], ENT_QUOTES, 'UTF-8') . '</strong> at an exclusive multipack rate.</p>' . "\n";
             $desc .= '<p style="font-size: 13px; color: #6d7175; margin: 0;">Regular Price: <strike>$' . number_format($totalPackValue, 2) . '</strike> · <strong>Bundle Price: $' . number_format($bundlePrice, 2) . ' (Save $' . number_format($savingsAmount, 2) . ')</strong></p>' . "\n";
             $desc .= '</div>';

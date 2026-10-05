@@ -827,30 +827,54 @@ body {
         <div class="polaris-title-row">
           <h1 id="page-title" class="polaris-title">SaleSnap</h1>
           <div class="polaris-header-actions">
-            <button type="button" class="polaris-btn" id="header-theme-btn">⚡ Theme &amp; Countdown</button>
-            <button type="button" class="polaris-btn" id="header-bundle-btn">🎁 Create Bundle</button>
-            <button type="button" class="polaris-btn polaris-btn-primary" id="new-campaign">＋ Create campaign</button>
+            <button type="button" class="polaris-btn" id="header-theme-btn">
+              <svg class="polaris-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4zm2 1v4h10V5H5zm0 6v4h4v-4H5zm6 0v4h4v-4h-4z"/></svg>
+              Theme &amp; Countdown
+            </button>
+            <button type="button" class="polaris-btn" id="header-bundle-btn">
+              <svg class="polaris-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 2 6.5v7L10 18l8-4.5v-7L10 2zm0 2.2 5.8 3.3-2.3 1.3-5.8-3.3L10 4.2zM4.2 8.2l4.8 2.7v5.3L4.2 13.5V8.2zm6.8 8v-5.3l4.8-2.7v5.3l-4.8 2.7z"/></svg>
+              Create Bundle
+            </button>
+            <button type="button" class="polaris-btn polaris-btn-primary" id="new-campaign">
+              <svg class="polaris-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 4a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H5a1 1 0 1 1 0-2h4V5a1 1 0 0 1 1-1z"/></svg>
+              Create Campaign
+            </button>
           </div>
         </div>
         <p id="page-desc" class="polaris-subtitle">Schedule flash-sale promotions with automatic pre-change snapshots and safe rollback.</p>
       </div>
     </div>
 
-    <!-- Polaris In-App Navigation Tabs (Core Feature Navigation) -->
+    <!-- Polaris In-App Grouped Navigation Tabs -->
     <div class="polaris-tabs-bar">
-      <button class="polaris-tab-item active" data-page="overview">Overview</button>
-      <button class="polaris-tab-item" data-page="campaigns">Campaigns</button>
-      <button class="polaris-tab-item" data-page="products">Products &amp; Collections</button>
-      <button class="polaris-tab-item" data-page="bundles">Bundle Creator</button>
-      <button class="polaris-tab-item" data-page="themes">Theme &amp; Countdown</button>
-      <button class="polaris-tab-item" data-page="snapshots">Snapshots &amp; Restores</button>
-      <button class="polaris-tab-item" data-page="activity">Activity Log</button>
+      <button class="polaris-tab-item active" data-page="overview">
+        <svg class="polaris-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 2 8v10h6v-5h4v5h6V8L10 2z"/></svg>
+        <span>Overview</span>
+      </button>
+      <button class="polaris-tab-item" data-page="campaigns">
+        <svg class="polaris-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 0 1 1-1h5.6a1 1 0 0 1 .7.3l8.4 8.4a1 1 0 0 1 0 1.4l-5.6 5.6a1 1 0 0 1-1.4 0L3.3 10.3a1 1 0 0 1-.3-.7V4a1 1 0 0 1 0-1zm3.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>
+        <span>Campaigns</span>
+      </button>
+      <button class="polaris-tab-item" data-page="products">
+        <svg class="polaris-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 2 6.5v7L10 18l8-4.5v-7L10 2zm0 2.2 5.8 3.3-2.3 1.3-5.8-3.3L10 4.2zM4.2 8.2l4.8 2.7v5.3L4.2 13.5V8.2zm6.8 8v-5.3l4.8-2.7v5.3l-4.8 2.7z"/></svg>
+        <span>Products &amp; Bundles</span>
+      </button>
+      <button class="polaris-tab-item" data-page="themes">
+        <svg class="polaris-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4zm2 1v4h10V5H5zm0 6v4h4v-4H5zm6 0v4h4v-4h-4z"/></svg>
+        <span>Theme &amp; Countdown</span>
+      </button>
+      <button class="polaris-tab-item" data-page="snapshots">
+        <svg class="polaris-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2s5 2 7 3v5c0 4.5-3.5 7.5-7 8-3.5-.5-7-3.5-7-8V5c2-1 7-3 7-3zm0 2.2C8.3 5 4.9 6.4 4.5 6.7v3.3c0 3.5 2.5 5.8 5.5 6.4 3-.6 5.5-2.9 5.5-6.4V6.7C15.1 6.4 11.7 5 10 4.2zM8.7 11.3l-1.5-1.5a.7.7 0 1 1 1-1l1 1 3-3a.7.7 0 1 1 1 1l-3.5 3.5a.7.7 0 0 1-1 0z" clip-rule="evenodd"/></svg>
+        <span>Safety &amp; Audit</span>
+      </button>
     </div>
 
     <!-- Alerts Banner -->
     <div id="error-banner" class="polaris-banner polaris-banner-critical hidden"></div>
     <div id="info-banner" class="polaris-banner polaris-banner-info">
-      <div class="polaris-banner-icon">✓</div>
+      <div class="polaris-banner-icon">
+        <svg class="polaris-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z" clip-rule="evenodd"/></svg>
+      </div>
       <div class="polaris-banner-content">
         <strong>Pre-change Snapshot Safeguards Active</strong>
         <p>SaleSnap captures exact product prices and tags before applying sale edits, allowing conflict-free rollback at any time.</p>
@@ -1000,7 +1024,7 @@ body {
             <input type="checkbox" id="enable-description">
             <span>Prepend announcement to description</span>
           </label>
-          <input class="polaris-input" id="description-prefix" value="✦ Flash Sale Discount Applied!" maxlength="240" placeholder="Announcement banner">
+          <input class="polaris-input" id="description-prefix" value="[Flash Sale Exclusive Deal] " maxlength="240" placeholder="Announcement banner">
         </div>
       </div>
 
@@ -1159,7 +1183,9 @@ body {
       <!-- BULK MULTIPACK MODE -->
       <div id="bundle-mode-multipack-view" class="hidden">
         <div class="polaris-banner polaris-banner-info">
-          <div class="polaris-banner-icon">⚡</div>
+          <div class="polaris-banner-icon">
+            <svg class="polaris-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 2 6.5v7L10 18l8-4.5v-7L10 2zm0 2.2 5.8 3.3-2.3 1.3-5.8-3.3L10 4.2zM4.2 8.2l4.8 2.7v5.3L4.2 13.5V8.2zm6.8 8v-5.3l4.8-2.7v5.3l-4.8 2.7z"/></svg>
+          </div>
           <div class="polaris-banner-content">
             <strong>Bulk Multi-Pack Generator</strong>
             <p>Generate 2-Pack, 3-Pack, or Family Packs for all selected products in bulk with discounted bundle pricing and compare-at rates.</p>
@@ -1269,7 +1295,7 @@ body {
 
     <!-- Snapshot & Audit History Section -->
     <details style="border:1px solid #e1e3e5;border-radius:8px;padding:10px 14px;background:#fafbfb;">
-      <summary style="font-weight:600;font-size:12px;cursor:pointer;color:#202223;">🔍 View Snapshot Hashes &amp; Integrity Logs</summary>
+      <summary style="font-weight:600;font-size:12px;cursor:pointer;color:#202223;">View Snapshot Hashes &amp; Integrity Logs</summary>
       <div id="cd-snapshots-logs-container" style="margin-top:10px;font-size:11px;">
         <div class="polaris-empty-picker">No conflicts detected. Original data verified.</div>
       </div>
@@ -1312,9 +1338,9 @@ body {
         <div id="countdown-banner-live-preview" style="background:#111827;color:#ffffff;padding:10px 16px;border-bottom:2px solid #f59e0b;">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;font-family:sans-serif;">
             <div style="display:flex;align-items:center;gap:10px;">
-              <span style="font-size:20px;">⚡</span>
+              <svg class="polaris-icon polaris-icon-lg" style="color:#f59e0b;" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm1-12a1 1 0 1 0-2 0v4.4a1 1 0 0 0 .3.7l2.8 2.8a1 1 0 0 0 1.4-1.4L11 9.9V6z" clip-rule="evenodd"/></svg>
               <div>
-                <strong id="prev-headline" style="font-size:13px;display:block;">⚡ FLASH SALE IS LIVE! Extra 20% Off Selected Items</strong>
+                <strong id="prev-headline" style="font-size:13px;display:block;">FLASH SALE IS LIVE! Extra 20% Off Selected Items</strong>
                 <span id="prev-subtext" style="font-size:11px;opacity:0.85;">Limited time store promotion. Discounts auto-applied in cart.</span>
               </div>
             </div>
@@ -1350,7 +1376,7 @@ body {
       <div class="polaris-settings-grid">
         <div class="polaris-form-group">
           <label class="polaris-sublabel" for="theme-bar-headline">Banner Headline</label>
-          <input class="polaris-input" id="theme-bar-headline" value="⚡ FLASH SALE IS LIVE! Extra %discount%% Off Selected Items">
+          <input class="polaris-input" id="theme-bar-headline" value="FLASH SALE IS LIVE! Extra %discount%% Off Selected Items">
         </div>
         <div class="polaris-form-group">
           <label class="polaris-sublabel" for="theme-bar-subtext">Urgency Subtext</label>

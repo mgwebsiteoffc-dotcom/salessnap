@@ -81,9 +81,23 @@ body {
 }
 
 /* In-App Tabs */
+.polaris-icon {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  display: inline-block;
+  vertical-align: middle;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+.polaris-icon-lg {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+}
 .polaris-tabs-bar {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   border-bottom: 1px solid var(--p-color-border);
   margin-bottom: 20px;
   overflow-x: auto;
@@ -94,6 +108,9 @@ body {
   display: none;
 }
 .polaris-tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -108,13 +125,42 @@ body {
 }
 .polaris-tab-item:hover {
   color: var(--p-color-text);
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(0, 0, 0, 0.03);
 }
 .polaris-tab-item.active {
   color: #000;
   font-weight: 600;
   border-bottom-color: var(--p-color-primary);
   background: transparent;
+}
+.polaris-sub-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--p-color-border-subdued);
+  padding-bottom: 8px;
+}
+.polaris-sub-tab {
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--p-color-text-subdued);
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.polaris-sub-tab:hover {
+  background: var(--p-color-bg-surface-secondary);
+  color: var(--p-color-text);
+}
+.polaris-sub-tab.active {
+  background: #e4e5e7;
+  color: var(--p-color-text);
+  font-weight: 600;
 }
 
 /* Buttons */

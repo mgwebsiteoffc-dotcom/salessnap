@@ -47,14 +47,14 @@ class Shop extends Model {
 
             // Campaign Defaults
             'default_tag' => 'salessnap-sale',
-            'default_desc_prefix' => '🔥 Flash Sale Exclusive Deal: ',
+            'default_desc_prefix' => 'Flash Sale Exclusive Deal: ',
             'auto_restore_on_end' => true,
             'snapshot_retention_days' => 90,
 
             // Countdown Banner Widget Settings
             'countdown_enabled' => true,
             'countdown_position' => 'top_sticky', // 'top_sticky', 'bottom_sticky'
-            'countdown_headline' => '⚡ FLASH SALE IS LIVE! Extra %discount%% Off Selected Items',
+            'countdown_headline' => 'FLASH SALE IS LIVE! Extra %discount%% Off Selected Items',
             'countdown_subtext' => 'Limited time store promotion. Discounts auto-applied in cart.',
             'countdown_bg_color' => '#111827',
             'countdown_text_color' => '#ffffff',
