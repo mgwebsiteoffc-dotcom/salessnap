@@ -169,7 +169,7 @@
     try { data = await res.json(); } catch {}
 
     if (!res.ok) {
-      if (res.status === 401 && !authRedirectStarted && shopDomain) {
+      if ((res.status === 401 || res.status === 403 || data.reauthorize) && !authRedirectStarted && shopDomain) {
         authRedirectStarted = true;
         const authUrl = window.location.origin + '/auth?shop=' + encodeURIComponent(shopDomain);
         if (window.shopify && typeof window.shopify.open === 'function') {
@@ -179,7 +179,7 @@
         } else {
           try { window.top.location.href = authUrl; } catch (e) { window.location.href = authUrl; }
         }
-        throw new Error('Reauthorizing store with Shopify… Redirecting to app permissions screen.');
+        throw new Error('Updating store permissions with Shopify… Redirecting to app authorization screen.');
       }
       let msg = data.message || 'Request failed (' + res.status + ').';
       if (data.errors) msg = Object.values(data.errors).flat().join(' ');

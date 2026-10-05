@@ -13,8 +13,8 @@ class ShopifyGraphql {
         $this->refreshIfNeeded($shop);
         $response = $this->sendQuery($shop, $query, $variables);
 
-        if (!$response->successful() && $response->status() === 401) {
-            Log::warning("Shopify GraphQL 401 Unauthorized for {$shop->shop_domain}. Attempting automatic token renewal via session token exchange...");
+        if (!$response->successful() && in_array($response->status(), [401, 403], true)) {
+            Log::warning("Shopify GraphQL HTTP {$response->status()} for {$shop->shop_domain}. Body: " . $response->body() . ". Attempting automatic token renewal via session token exchange...");
             
             $sessionToken = request()->attributes->get('shopify_session_token') ?: request()->bearerToken();
             if ($sessionToken && VerifyShopifySessionToken::exchangeSessionToken($shop, $sessionToken)) {
@@ -25,16 +25,24 @@ class ShopifyGraphql {
         }
 
         if (!$response->successful()) {
-            if ($response->status() === 401) {
-                Log::warning("Shopify GraphQL 401 Unauthorized for {$shop->shop_domain}. Stored access token may be revoked.");
-                throw new RuntimeException('Shopify API session expired (HTTP 401). Please re-open or re-authorize the app in Shopify Admin.');
+            $status = $response->status();
+            $bodyText = $response->body();
+            Log::warning("Shopify GraphQL request failed with HTTP {$status} for {$shop->shop_domain}: {$bodyText}");
+
+            if ($status === 401 || $status === 403) {
+                throw new RuntimeException("Shopify API permissions expired or scope upgrade required (HTTP {$status}). Please re-authorize the app in Shopify Admin.");
             }
-            throw new RuntimeException('Shopify API request failed (HTTP ' . $response->status() . ').');
+            throw new RuntimeException("Shopify API request failed (HTTP {$status}).");
         }
 
         $body = $response->json();
         if (!empty($body['errors'])) {
-            throw new RuntimeException('Shopify GraphQL error: ' . mb_substr(json_encode($body['errors']), 0, 1200));
+            $errMsg = is_array($body['errors']) ? json_encode($body['errors']) : (string)$body['errors'];
+            Log::warning("Shopify GraphQL returned errors for {$shop->shop_domain}: {$errMsg}");
+            if (str_contains($errMsg, 'ACCESS_DENIED') || str_contains($errMsg, 'access scope') || str_contains($errMsg, 'permission')) {
+                throw new RuntimeException("Shopify API scope approval required: {$errMsg}");
+            }
+            throw new RuntimeException('Shopify GraphQL error: ' . mb_substr($errMsg, 0, 1200));
         }
 
         return $body['data'] ?? [];
