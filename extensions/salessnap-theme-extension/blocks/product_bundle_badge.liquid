@@ -1,0 +1,54 @@
+{% comment %}
+  SaleSnap Product Promo & Bundle Savings Badge
+  Theme App Extension - App Block (Online Store 2.0 Product Detail Pages)
+{% endcomment %}
+
+<div class="salessnap-product-badge" style="margin: 12px 0; padding: 12px 16px; border-radius: 8px; background: {{ block.settings.badge_bg | default: '#f0fdf4' }}; border: 1px solid {{ block.settings.badge_border | default: '#bbf7d0' }}; color: {{ block.settings.badge_text | default: '#166534' }}; font-family: inherit;">
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <svg style="width: 20px; height: 20px; flex-shrink: 0;" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2s5 2 7 3v5c0 4.5-3.5 7.5-7 8-3.5-.5-7-3.5-7-8V5c2-1 7-3 7-3zm0 2.2C8.3 5 4.9 6.4 4.5 6.7v3.3c0 3.5 2.5 5.8 5.5 6.4 3-.6 5.5-2.9 5.5-6.4V6.7C15.1 6.4 11.7 5 10 4.2zM8.7 11.3l-1.5-1.5a.7.7 0 1 1 1-1l1 1 3-3a.7.7 0 1 1 1 1l-3.5 3.5a.7.7 0 0 1-1 0z" clip-rule="evenodd"/></svg>
+    <div>
+      <strong style="font-size: 13.5px; display: block;">{{ block.settings.title | default: 'Special Promotion Active' | escape }}</strong>
+      <span style="font-size: 12px; opacity: 0.9;">{{ block.settings.caption | default: 'Promotional discount and bundle savings applied automatically at checkout.' | escape }}</span>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "SaleSnap Promo Badge",
+  "target": "section",
+  "templates": ["product"],
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Badge Title",
+      "default": "Special Promotion Active"
+    },
+    {
+      "type": "text",
+      "id": "caption",
+      "label": "Badge Caption",
+      "default": "Promotional discount and bundle savings applied automatically at checkout."
+    },
+    {
+      "type": "color",
+      "id": "badge_bg",
+      "label": "Background Color",
+      "default": "#f0fdf4"
+    },
+    {
+      "type": "color",
+      "id": "badge_border",
+      "label": "Border Color",
+      "default": "#bbf7d0"
+    },
+    {
+      "type": "color",
+      "id": "badge_text",
+      "label": "Text Color",
+      "default": "#166534"
+    }
+  ]
+}
+{% endschema %}

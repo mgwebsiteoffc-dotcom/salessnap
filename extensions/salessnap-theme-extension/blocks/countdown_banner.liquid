@@ -1,0 +1,119 @@
+{% comment %}
+  SaleSnap Flash Sale Countdown Announcement Bar
+  Theme App Extension - App Embed Block (Online Store 2.0)
+{% endcomment %}
+
+<div id="salessnap-countdown-banner" class="salessnap-countdown-banner" data-ends-at="{{ block.settings.ends_at | default: '2026-12-31T23:59:59Z' }}" style="position: sticky; {% if block.settings.position == 'bottom' %}bottom: 0;{% else %}top: 0;{% endif %} z-index: 2147483640; width: 100%; background: {{ block.settings.bg_color | default: '#111827' }}; color: {{ block.settings.text_color | default: '#ffffff' }}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-bottom: 2px solid {{ block.settings.accent_color | default: '#f59e0b' }}; line-height: 1.4;">
+  <div style="max-width: 1200px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 12px; min-width: 240px;">
+      <svg style="width:20px;height:20px;color:{{ block.settings.accent_color | default: '#f59e0b' }};flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm1-12a1 1 0 1 0-2 0v4.4a1 1 0 0 0 .3.7l2.8 2.8a1 1 0 0 0 1.4-1.4L11 9.9V6z" clip-rule="evenodd"/></svg>
+      <div>
+        <div style="font-weight: 700; font-size: 14px; letter-spacing: -0.01em;">{{ block.settings.headline | default: 'FLASH SALE IS LIVE! Extra Discount Auto-Applied' | escape }}</div>
+        <div style="font-size: 12px; opacity: 0.85; margin-top: 2px;">{{ block.settings.subtext | default: 'Special promotional deals ending soon. Shop now while supplies last!' | escape }}</div>
+      </div>
+    </div>
+
+    <!-- Countdown Timer Units -->
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="text-align: center; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 8px; min-width: 44px;">
+        <span id="ss-days" style="font-size: 16px; font-weight: 800; color: {{ block.settings.accent_color | default: '#f59e0b' }}; display: block; line-height: 1.1;">00</span>
+        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Days</span>
+      </div>
+      <span style="font-weight: 700; color: {{ block.settings.accent_color | default: '#f59e0b' }};">:</span>
+      <div style="text-align: center; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 8px; min-width: 44px;">
+        <span id="ss-hours" style="font-size: 16px; font-weight: 800; color: {{ block.settings.accent_color | default: '#f59e0b' }}; display: block; line-height: 1.1;">00</span>
+        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Hrs</span>
+      </div>
+      <span style="font-weight: 700; color: {{ block.settings.accent_color | default: '#f59e0b' }};">:</span>
+      <div style="text-align: center; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 8px; min-width: 44px;">
+        <span id="ss-mins" style="font-size: 16px; font-weight: 800; color: {{ block.settings.accent_color | default: '#f59e0b' }}; display: block; line-height: 1.1;">00</span>
+        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Min</span>
+      </div>
+      <span style="font-weight: 700; color: {{ block.settings.accent_color | default: '#f59e0b' }};">:</span>
+      <div style="text-align: center; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 8px; min-width: 44px;">
+        <span id="ss-secs" style="font-size: 16px; font-weight: 800; color: {{ block.settings.accent_color | default: '#f59e0b' }}; display: block; line-height: 1.1;">00</span>
+        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Sec</span>
+      </div>
+    </div>
+
+    {% if block.settings.btn_text != blank %}
+    <div>
+      <a href="{{ block.settings.btn_url | default: '/collections/all' }}" style="background: {{ block.settings.accent_color | default: '#f59e0b' }}; color: #111827; font-weight: 700; font-size: 13px; padding: 8px 18px; border-radius: 20px; text-decoration: none; display: inline-block;">
+        {{ block.settings.btn_text | escape }}
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{{ 'salessnap-countdown.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'salessnap-countdown.js' | asset_url }}" defer="defer"></script>
+
+{% schema %}
+{
+  "name": "SaleSnap Countdown Bar",
+  "target": "body",
+  "stylesheet": "salessnap-countdown.css",
+  "javascript": "salessnap-countdown.js",
+  "settings": [
+    {
+      "type": "text",
+      "id": "headline",
+      "label": "Headline Text",
+      "default": "FLASH SALE IS LIVE! Extra Discount Auto-Applied"
+    },
+    {
+      "type": "text",
+      "id": "subtext",
+      "label": "Urgency Subtext",
+      "default": "Special promotional deals ending soon. Shop now while supplies last!"
+    },
+    {
+      "type": "text",
+      "id": "ends_at",
+      "label": "Countdown End Date (ISO 8601)",
+      "default": "2026-12-31T23:59:59Z"
+    },
+    {
+      "type": "text",
+      "id": "btn_text",
+      "label": "Button Label",
+      "default": "Shop Deals Now"
+    },
+    {
+      "type": "url",
+      "id": "btn_url",
+      "label": "Button Link",
+      "default": "/collections/all"
+    },
+    {
+      "type": "select",
+      "id": "position",
+      "label": "Banner Position",
+      "options": [
+        { "value": "top", "label": "Top Sticky" },
+        { "value": "bottom", "label": "Bottom Sticky" }
+      ],
+      "default": "top"
+    },
+    {
+      "type": "color",
+      "id": "bg_color",
+      "label": "Background Color",
+      "default": "#111827"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent Color",
+      "default": "#f59e0b"
+    }
+  ]
+}
+{% endschema %}
