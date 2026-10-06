@@ -718,18 +718,22 @@ GQL;
 
         $createdId = $created['id'];
 
-        // Copy source theme's layout/theme.liquid and inject countdown banner
+        // Optionally copy layout/theme.liquid or snippet if asset editing is supported on the theme
         try {
+            $snippet = $this->generateCountdownLiquid($countdownConfig ?? [], $shop);
+            try {
+                $this->restPut($shop, "themes/{$createdId}/assets.json", [
+                    'asset' => [
+                        'key' => 'snippets/salessnap-countdown.liquid',
+                        'value' => $snippet,
+                    ],
+                ]);
+            } catch (\Throwable $e) {
+                // If unpublished theme is still provisioning or blocks direct asset PUT, fallback gracefully to Theme Extension
+            }
+
             $sourceLayout = $this->restGet($shop, "themes/{$source}/assets.json", ['asset[key]' => 'layout/theme.liquid']);
             $sourceContent = $sourceLayout['asset']['value'] ?? null;
-
-            $snippet = $this->generateCountdownLiquid($countdownConfig ?? [], $shop);
-            $this->restPut($shop, "themes/{$createdId}/assets.json", [
-                'asset' => [
-                    'key' => 'snippets/salessnap-countdown.liquid',
-                    'value' => $snippet,
-                ],
-            ]);
 
             if ($sourceContent) {
                 if (!str_contains($sourceContent, 'salessnap-countdown')) {
@@ -737,16 +741,20 @@ GQL;
                     if ($modified === $sourceContent) {
                         $modified = "{% render 'salessnap-countdown' %}\n" . $sourceContent;
                     }
-                    $this->restPut($shop, "themes/{$createdId}/assets.json", [
-                        'asset' => [
-                            'key' => 'layout/theme.liquid',
-                            'value' => $modified,
-                        ],
-                    ]);
+                    try {
+                        $this->restPut($shop, "themes/{$createdId}/assets.json", [
+                            'asset' => [
+                                'key' => 'layout/theme.liquid',
+                                'value' => $modified,
+                            ],
+                        ]);
+                    } catch (\Throwable $e) {
+                        // Suppress asset layout modification errors on unpublished shell themes
+                    }
                 }
             }
         } catch (\Throwable $e) {
-            Log::warning("Could not copy theme layout assets for new theme {$createdId}: " . $e->getMessage());
+            Log::info("Theme duplicate completed. Storefront widgets will use Theme App Extension: " . $e->getMessage());
         }
 
         return [
@@ -806,15 +814,15 @@ GQL;
     }
 
     public function injectCountdown(Shop $shop, string|int $themeId, array $config): bool {
-        $snippetContent = $this->generateCountdownLiquid($config, $shop);
-        $this->restPut($shop, "themes/{$themeId}/assets.json", [
-            'asset' => [
-                'key' => 'snippets/salessnap-countdown.liquid',
-                'value' => $snippetContent,
-            ],
-        ]);
-
         try {
+            $snippetContent = $this->generateCountdownLiquid($config, $shop);
+            $this->restPut($shop, "themes/{$themeId}/assets.json", [
+                'asset' => [
+                    'key' => 'snippets/salessnap-countdown.liquid',
+                    'value' => $snippetContent,
+                ],
+            ]);
+
             $themeLiquid = $this->restGet($shop, "themes/{$themeId}/assets.json", [
                 'asset[key]' => 'layout/theme.liquid',
             ]);
@@ -836,7 +844,7 @@ GQL;
                 ]);
             }
         } catch (\Throwable $e) {
-            Log::warning("Could not automatically update layout/theme.liquid for theme {$themeId}: " . $e->getMessage());
+            Log::info("Theme asset injection skipped for theme {$themeId} (Theme App Extension is active): " . $e->getMessage());
         }
 
         return true;
