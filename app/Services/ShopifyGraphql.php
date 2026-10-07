@@ -942,34 +942,60 @@ LIQUID;
     }
 
     private function refreshIfNeeded(Shop $shop): void {
-        if (!$shop->token_expires_at || $shop->token_expires_at->gt(now()->addMinutes(2))) return;
-        DB::transaction(function () use ($shop) {
-            $locked = Shop::whereKey($shop->id)->lockForUpdate()->firstOrFail();
-            if (!$locked->token_expires_at || $locked->token_expires_at->gt(now()->addMinutes(2))) {
+        // 1. Proactively migrate legacy non-expiring offline token (token_expires_at is null)
+        if (empty($shop->token_expires_at) && !empty($shop->access_token)) {
+            $migrated = VerifyShopifySessionToken::migrateOfflineTokenToExpiring($shop);
+            if ($migrated) {
                 $shop->refresh();
                 return;
             }
+        }
+
+        // 2. Token is valid and has more than 5 minutes remaining
+        if ($shop->token_expires_at && $shop->token_expires_at->gt(now()->addMinutes(5))) {
+            return;
+        }
+
+        // 3. Token is expired or expiring within 5 minutes -> refresh or re-exchange
+        DB::transaction(function () use ($shop) {
+            $locked = Shop::whereKey($shop->id)->lockForUpdate()->firstOrFail();
+            if ($locked->token_expires_at && $locked->token_expires_at->gt(now()->addMinutes(5))) {
+                $shop->refresh();
+                return;
+            }
+
+            if ($locked->refresh_token && (!$locked->refresh_token_expires_at || $locked->refresh_token_expires_at->isFuture())) {
+                $r = Http::asForm()->acceptJson()->timeout(15)->post("https://{$locked->shop_domain}/admin/oauth/access_token", [
+                    'client_id' => config('shopify.api_key'),
+                    'client_secret' => config('shopify.api_secret'),
+                    'grant_type' => 'refresh_token',
+                    'refresh_token' => $locked->refresh_token,
+                    'expiring' => 1,
+                ]);
+
+                if ($r->successful() && $r->json('access_token')) {
+                    $data = $r->json();
+                    $locked->forceFill([
+                        'access_token' => $data['access_token'],
+                        'refresh_token' => $data['refresh_token'] ?? $locked->refresh_token,
+                        'token_expires_at' => isset($data['expires_in']) ? now()->addSeconds((int)$data['expires_in']) : null,
+                        'refresh_token_expires_at' => isset($data['refresh_token_expires_in']) ? now()->addSeconds((int)$data['refresh_token_expires_in']) : $locked->refresh_token_expires_at,
+                    ])->save();
+                    $shop->refresh();
+                    return;
+                }
+            }
+
+            // Fallback: direct offline token exchange migration
+            $migrated = VerifyShopifySessionToken::migrateOfflineTokenToExpiring($locked);
+            if ($migrated) {
+                $shop->refresh();
+                return;
+            }
+
             if (!$locked->refresh_token || ($locked->refresh_token_expires_at && $locked->refresh_token_expires_at->isPast())) {
                 throw new RuntimeException('Shopify token expired. Re-open the app in Shopify Admin to refresh authorization.');
             }
-            $r = Http::asForm()->acceptJson()->timeout(15)->post("https://{$locked->shop_domain}/admin/oauth/access_token", [
-                'client_id' => config('shopify.api_key'),
-                'client_secret' => config('shopify.api_secret'),
-                'grant_type' => 'refresh_token',
-                'refresh_token' => $locked->refresh_token,
-                'expiring' => 1,
-            ]);
-            if (!$r->successful() || !$r->json('access_token')) {
-                throw new RuntimeException('Could not refresh the Shopify access token. Re-authorize the app.');
-            }
-            $data = $r->json();
-            $locked->forceFill([
-                'access_token' => $data['access_token'],
-                'refresh_token' => $data['refresh_token'] ?? $locked->refresh_token,
-                'token_expires_at' => isset($data['expires_in']) ? now()->addSeconds((int)$data['expires_in']) : null,
-                'refresh_token_expires_at' => isset($data['refresh_token_expires_in']) ? now()->addSeconds((int)$data['refresh_token_expires_in']) : $locked->refresh_token_expires_at,
-            ])->save();
-            $shop->refresh();
         });
     }
 }
