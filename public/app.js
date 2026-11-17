@@ -803,7 +803,9 @@
               <li>${svgIcon('check')} Priority queue worker</li>
             </ul>
             ${isPro ? `
-              <button class="polaris-btn polaris-btn-destructive" id="cancel-sub-btn">Cancel Pro Subscription</button>
+              <div id="subscription-action">
+                <button class="polaris-btn polaris-btn-destructive" id="cancel-sub-btn">Cancel Pro Subscription</button>
+              </div>
             ` : `
               <button class="polaris-btn polaris-btn-primary" id="upgrade-pro-btn">Start 7-Day Free Trial</button>
             `}
@@ -833,10 +835,19 @@
         };
       }
 
-      if ($('#cancel-sub-btn')) {
-        $('#cancel-sub-btn').onclick = async () => {
-          if (!window.confirm('Are you sure you want to cancel your Pro plan? Your store will return to the Free Tier.')) return;
-          const btn = $('#cancel-sub-btn');
+      const showCancelConfirmation = () => {
+        const action = $('#subscription-action');
+        action.innerHTML = `
+          <p class="polaris-text-subdued">Cancel Pro now? Your store will return to the Free Tier.</p>
+          <button class="polaris-btn polaris-btn-destructive" id="confirm-cancel-sub-btn">Confirm cancellation</button>
+          <button class="polaris-btn" id="keep-pro-sub-btn">Keep Pro</button>
+        `;
+        $('#keep-pro-sub-btn').onclick = () => {
+          action.innerHTML = '<button class="polaris-btn polaris-btn-destructive" id="cancel-sub-btn">Cancel Pro Subscription</button>';
+          $('#cancel-sub-btn').onclick = showCancelConfirmation;
+        };
+        $('#confirm-cancel-sub-btn').onclick = async event => {
+          const btn = event.currentTarget;
           btn.disabled = true;
           try {
             const res = await api('/billing/cancel', { method: 'POST', body: '{}' });
@@ -844,10 +855,11 @@
             await loadBillingPage(container);
           } catch (e) {
             toast(e.message);
-            btn.disabled = false;
+            await loadBillingPage(container);
           }
         };
-      }
+      };
+      if ($('#cancel-sub-btn')) $('#cancel-sub-btn').onclick = showCancelConfirmation;
     } catch (e) {
       container.innerHTML = '<div class="polaris-empty-state">' + esc(e.message) + '</div>';
     }

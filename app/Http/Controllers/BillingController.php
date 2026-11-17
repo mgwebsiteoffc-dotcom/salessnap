@@ -10,8 +10,10 @@ class BillingController {
         $shop = $request->attributes->get('shop');
 
         $activeSub = null;
+        $subscriptionLookupSucceeded = false;
         try {
             $activeSub = $graphql->getActiveSubscription($shop);
+            $subscriptionLookupSucceeded = true;
         } catch (\Throwable $e) {
             Log::warning('Could not query active subscription from Shopify: ' . $e->getMessage());
         }
@@ -22,9 +24,10 @@ class BillingController {
                 'charge_id' => $activeSub['id'] ?? $shop->charge_id,
                 'subscription_status' => 'ACTIVE',
             ]);
-        } elseif ($shop->plan === 'pro' && !$activeSub) {
+        } elseif ($subscriptionLookupSucceeded && $shop->plan === 'pro' && !$activeSub) {
             $shop->update([
                 'plan' => 'free',
+                'charge_id' => null,
                 'subscription_status' => null,
             ]);
         }
@@ -78,16 +81,31 @@ class BillingController {
     public function cancel(Request $request, ShopifyGraphql $graphql) {
         $shop = $request->attributes->get('shop');
 
-        if (!$shop->charge_id) {
-            $shop->update(['plan' => 'free', 'subscription_status' => null]);
-            return response()->json([
-                'message' => 'Subscription cancelled.',
-                'plan' => 'free',
-            ]);
-        }
-
         try {
-            $graphql->cancelAppSubscription($shop, $shop->charge_id);
+            $activeSub = $graphql->getActiveSubscription($shop);
+            if (!$activeSub) {
+                $shop->update([
+                    'plan' => 'free',
+                    'charge_id' => null,
+                    'subscription_status' => null,
+                ]);
+                return response()->json([
+                    'message' => 'No active subscription was found. Your store is on the Free plan.',
+                    'plan' => 'free',
+                ]);
+            }
+
+            $subscriptionId = $activeSub['id'] ?? null;
+            if (!$subscriptionId) {
+                throw new \RuntimeException('Shopify returned an active subscription without an ID.');
+            }
+
+            $result = $graphql->cancelAppSubscription($shop, $subscriptionId);
+            $cancelledSubscription = $result['appSubscription'] ?? [];
+            if (($cancelledSubscription['status'] ?? '') !== 'CANCELLED') {
+                throw new \RuntimeException('Shopify did not confirm that the subscription was cancelled.');
+            }
+
             $shop->update([
                 'plan' => 'free',
                 'charge_id' => null,
